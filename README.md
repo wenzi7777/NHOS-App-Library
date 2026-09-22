@@ -28,6 +28,7 @@ tools/
   opset.py              op table + cost model -- the single source of truth
   compile.py            .nhs -> .nha
   validate.py           everything the device checks, plus what it cannot
+  simulate.py           runs a package against recorded frames, no device needed
   build_index.py        compiles every app, regenerates dist/ and index.json
   check_versions.py     refuses a changed package that reuses its version
 ```
@@ -56,7 +57,9 @@ event heel_strike when heel_load > 40 hyst 6 for 30ms
    nodes were shared, estimated cost and the minimum OS version.
 3. `python tools/build_index.py` and commit the generated `app.nha`, `dist/`
    and `index.json` alongside your source.
-4. Open a PR. CI re-runs all of the above and additionally requires a version
+4. Check the behaviour against real data before touching hardware:
+   `python tools/simulate.py apps/<id>/app.nha session.csv --budget`
+5. Open a PR. CI re-runs all of the above and additionally requires a version
    bump if you changed an app that already exists.
 
 `capabilities` and `min_os` are **derived from the ops the graph actually

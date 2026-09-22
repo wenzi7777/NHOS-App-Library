@@ -141,6 +141,26 @@ research data-collection device, and a signal that quietly changes fidelity
 because someone enabled another app would put a step change in the data that
 has nothing to do with the subject. Recorded, it is merely honest.
 
+## Testing without a device
+
+`tools/simulate.py` runs a package against a recorded sample CSV:
+
+```
+python tools/simulate.py apps/heel_strike/app.nha session.csv \
+    --events session.events.csv --budget
+```
+
+It prints an event timeline and, with `--events`, writes the **same
+`.events.csv` shape the Desktop writes beside a recording** -- so a simulated
+run and a real one can be diffed row by row. `--budget` prints the per-node
+cost breakdown.
+
+This is worth more than convenience. The graph's semantics -- how a threshold
+latches, when a debounce commits, which edge emits -- otherwise exist only in
+the firmware's C++, where nothing can assert on them. The simulator is the
+executable specification, and `tests/test_firmware_contract.py` reads the
+firmware's own headers to check that the two have not drifted.
+
 ## A note on scope
 
 The DSL is **syntactic sugar over the node graph, and nothing more**. If a

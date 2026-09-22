@@ -93,6 +93,18 @@ class Builder:
     _intern: dict[str, int] = field(default_factory=dict)
     reused: int = 0
 
+    def emit_unique(self, op: str, *, inputs: list[int] | None = None, **params) -> int:
+        """Emit without interning, for a node whose fields are patched later."""
+        node: dict = {"op": op}
+        inputs = inputs or []
+        if len(inputs) == 1:
+            node["in"] = inputs[0]
+        elif inputs:
+            node["in"] = list(inputs)
+        node.update(params)
+        self.nodes.append(node)
+        return len(self.nodes) - 1
+
     def emit(self, op: str, *, inputs: list[int] | None = None, **params) -> int:
         node: dict = {"op": op}
         inputs = inputs or []
@@ -183,6 +195,8 @@ class Parser:
                 self.parse_emit()
             elif keyword == "led":
                 self.parse_led()
+            elif keyword == "gate":
+                self.parse_gate()
             else:
                 raise CompileError(f"unknown statement {keyword!r}", self.tok.line)
         return self.finish()
@@ -263,6 +277,37 @@ class Parser:
                 raise CompileError(f"expected 'ms', found {unit!r}", ms_token.line)
             node = self.builder.emit("debounce", inputs=[node], ms=int(ms_token.text))
         return node
+
+    def parse_gate(self) -> None:
+        """`gate (<condition>) { ... }` -- skip the block when the condition is false.
+
+        The gate node is emitted BEFORE the block, and skips the nodes that
+        follow it, because data references only ever point backwards: by the
+        time evaluation reaches a gate, anything it referenced has already run.
+        The only work a gate can actually avoid is what comes after it.
+        """
+        self.expect("gate")
+        self.expect("(")
+        condition = self.parse_condition()
+        self.expect(")")
+        gate_index = self.builder.emit_unique("gate", inputs=[condition, condition], span=0)
+        self.expect("{")
+        while not self.accept("}"):
+            keyword = self.tok.text
+            if keyword == "signal":
+                self.parse_signal()
+            elif keyword == "event":
+                self.parse_event()
+            elif keyword == "emit":
+                self.parse_emit()
+            elif keyword == "led":
+                self.parse_led()
+            else:
+                raise CompileError(f"{keyword!r} is not allowed inside a gate", self.tok.line)
+        span = len(self.builder.nodes) - gate_index - 1
+        if span == 0:
+            raise CompileError("empty gate block", self.tok.line)
+        self.builder.nodes[gate_index]["span"] = span
 
     def parse_event(self) -> None:
         line = self.tok.line
