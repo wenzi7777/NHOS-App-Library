@@ -34,7 +34,7 @@ from opset import (  # noqa: E402
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
 MIN_OS_RE = re.compile(r"^v?\d+\.\d+\.\d+$")
 MANIFEST_REQUIRED = ("id", "name", "version", "author", "summary")
-# A package's rule graph is read with the same flat key scan the firmware uses,
+# A package's flow graph is read with the same flat key scan the firmware uses,
 # so a manifest field named like a top-level key would shadow it.
 MANIFEST_FORBIDDEN_KEYS = {"nodes", "kind", "nhapp"}
 
@@ -116,7 +116,7 @@ def validate_graph(nodes: list, manifest: dict) -> dict:
             _require("read_matrix" in caps, "capability_not_declared:read_matrix")
         if op.window_key:
             window = node.get(op.window_key)
-            _require(isinstance(window, int) and 1 <= window <= 240,
+            _require(isinstance(window, int) and 1 <= window <= 128,
                      f"invalid_window:{window}")
 
     declared_min_os = str(manifest.get("min_os") or "v1.0.0").lstrip("v")
@@ -135,7 +135,7 @@ def validate_graph(nodes: list, manifest: dict) -> dict:
 def validate_package(doc: dict, raw: bytes | None = None) -> dict:
     _require(isinstance(doc, dict), "not_a_package")
     _require(doc.get("nhapp") == 1, f"unsupported_package_version:{doc.get('nhapp')}")
-    _require(str(doc.get("kind") or "rules") == "rules", f"unsupported_kind:{doc.get('kind')}")
+    _require(str(doc.get("kind") or "flow") == "flow", f"unsupported_kind:{doc.get('kind')}")
 
     manifest = doc.get("manifest")
     _require(isinstance(manifest, dict), "missing_manifest")

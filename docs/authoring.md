@@ -2,7 +2,7 @@
 
 ## What an app is
 
-A **rule graph**: an ordered list of nodes, each one an operation on the
+A **flow graph**: an ordered list of nodes, each one an operation on the
 pressure matrix or on the result of an earlier node. The device evaluates the
 whole list once per frame.
 

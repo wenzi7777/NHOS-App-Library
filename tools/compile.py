@@ -459,7 +459,7 @@ class Parser:
         manifest["min_os"] = min_os_for(self.builder.nodes)
         return {
             "nhapp": 1,
-            "kind": "rules",
+            "kind": "flow",
             "name": self.graph_name,
             "manifest": manifest,
             "nodes": self.builder.nodes,

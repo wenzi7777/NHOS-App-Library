@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "product": "NHOS App Library",
-  "generated_at": "2026-09-22T12:11:26Z",
+  "generated_at": "2026-09-22T12:41:49Z",
   "cell_count": 225,
   "apps": [
     {
@@ -31,8 +31,8 @@
       "device_path": "apps/balance.nha",
       "package": {
         "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/balance/balance-1.0.0.nha",
-        "sha256": "04f62b1c97a2a3e585f7059ce43779e69d39345432bf351e5235b9a9c96a34b0",
-        "size": 649
+        "sha256": "95af27d149e574b82db47909a456944628ae184fd7ccc453d37086ff043ffb7a",
+        "size": 648
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/balance/icon.svg",
       "readme_url": {
@@ -66,8 +66,8 @@
       "device_path": "apps/contact.nha",
       "package": {
         "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/contact/contact-1.0.0.nha",
-        "sha256": "0cc573580a9b92b4d8903ddeec6585b7279b152f54d2976acecf7dc9bc32fd35",
-        "size": 452
+        "sha256": "3c0063bd147e9354f0d53fa7727b134310015a64bffbc8d2e79c3c2a34794a00",
+        "size": 451
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/contact/icon.svg",
       "readme_url": {
@@ -101,8 +101,8 @@
       "device_path": "apps/features.nha",
       "package": {
         "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/features/features-1.0.0.nha",
-        "sha256": "825ba2384b50a8edcee7eac76f6d0ffa8376c20a78f36bf6c18467d5fea88513",
-        "size": 800
+        "sha256": "4a41350073a36e106d469cfb0ab3e637edc4f3ca1a067ad062cba4c8d0a7d697",
+        "size": 799
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/features/icon.svg",
       "readme_url": {
@@ -136,8 +136,8 @@
       "device_path": "apps/heel_strike.nha",
       "package": {
         "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/heel_strike/heel_strike-1.0.0.nha",
-        "sha256": "50559293f213887f8d7982c94cc48f526c1a42fa4ed7dce6049ad2be7348a4d5",
-        "size": 493
+        "sha256": "4caa7ba99bfc814e64c55199c310c54ed26c5429bfca7004f4d4541766e164e6",
+        "size": 492
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/heel_strike/icon.svg",
       "readme_url": {

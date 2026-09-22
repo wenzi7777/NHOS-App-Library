@@ -3,7 +3,7 @@
 The app catalog for **New Horizons OS**. The Desktop app reads `index.json`
 from this repository and installs packages from `dist/`.
 
-An app here is a **rule graph**: a small, loop-free dataflow program the device
+An app here is a **flow graph**: a small, loop-free dataflow program the device
 evaluates once per frame. It is deliberately not a scripting language — see
 [docs/authoring.md](docs/authoring.md) for why, and for the op reference.
 
@@ -66,9 +66,10 @@ accepted by the library and then rejected by the device as `unknown_op`.
 ## Compatibility
 
 An app that sticks to the seven v1.0.0 ops (`total`, `peak`, `region_sum`,
-`active_cells`, `threshold`, `debounce`, `emit`) reports `min_os: v1.0.0` and
-runs on firmware that shipped before the package format existed — such a graph
-can be uploaded as `apps/rules.json` and loaded with `app-load-rules`.
+`active_cells`, `threshold`, `debounce`, `emit`) reports `min_os: v1.0.0`, so
+its graph is expressible on firmware that predates the package format. Note
+that v1.1.0 renamed the engine from "rule" to "flow" and did not keep aliases,
+so the commands and file paths differ on either side of that line.
 
 Everything else needs **v1.1.0**, which added arithmetic, time-series
 operators, the package registry and multiple app slots.
