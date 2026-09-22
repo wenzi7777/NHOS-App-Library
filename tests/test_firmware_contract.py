@@ -84,15 +84,29 @@ class CostModelContractTests(unittest.TestCase):
 
 @unittest.skipUnless(FIRMWARE.is_dir(), "NewHorizonsOS-OTA is not checked out beside this repo")
 class PackageContractTests(unittest.TestCase):
-    def test_the_firmware_accepts_the_kind_this_library_emits(self):
+    def test_the_firmware_accepts_every_kind_this_library_emits(self):
+        import json
         package_cpp = (FIRMWARE / "AppPackage.cpp").read_text(encoding="utf-8")
-        self.assertIn('kind != "flow"', package_cpp)
+        published = {json.loads(path.read_text())["kind"]
+                     for path in (ROOT / "apps").glob("*/app.nha")}
+        for kind in published:
+            with self.subTest(kind=kind):
+                # A kind the device does not know is refused as unsupported_kind
+                # AFTER upload, which is a confusing place to find out.
+                self.assertIn(f'"{kind}"', package_cpp)
 
-    def test_published_packages_declare_that_kind(self):
+    def test_published_packages_declare_a_known_kind(self):
         import json
         for path in sorted((ROOT / "apps").glob("*/app.nha")):
             with self.subTest(app=path.parent.name):
-                self.assertEqual(json.loads(path.read_text())["kind"], "flow")
+                self.assertIn(json.loads(path.read_text())["kind"], ("flow", "readout"))
+
+    def test_the_firmware_never_dispatches_a_readout(self):
+        registry = (FIRMWARE / "AppRegistry.cpp").read_text(encoding="utf-8")
+        # A readout holds a registry entry so that what a device has travels
+        # with the device -- but it has nothing to run.
+        self.assertIn("not_activatable:readout", registry)
+        self.assertIn("kAppPackageReadout", registry)
 
 
 if __name__ == "__main__":

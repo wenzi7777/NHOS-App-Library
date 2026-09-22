@@ -550,6 +550,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--write", action="store_true", help="write app.nha beside the source")
     args = parser.parse_args(argv)
 
+    # readout packages have no graph to compile; they are JSON source.
     paths = args.paths or sorted(Path("apps").glob("*/app.nhs"))
     failed = 0
     for path in paths:

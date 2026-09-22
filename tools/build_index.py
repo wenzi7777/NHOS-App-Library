@@ -44,9 +44,15 @@ def _localised(value, fallback: str) -> dict[str, str]:
 
 
 def build_entry(app_dir: Path) -> dict:
-    # The .nhs source is the artifact under review; app.nha is derived from it
-    # and never hand-edited.
-    doc, _ = compile_file(app_dir / "app.nhs")
+    readout = app_dir / "readout.json"
+    if readout.exists():
+        # A readout has no graph to compile: the JSON IS the source, and it is
+        # what a reviewer reads.
+        doc = json.loads(readout.read_text(encoding="utf-8"))
+    else:
+        # The .nhs source is the artifact under review; app.nha is derived from
+        # it and never hand-edited.
+        doc, _ = compile_file(app_dir / "app.nhs")
     raw = canonical_bytes(doc)
     report = validate_package(doc, raw)
     (app_dir / "app.nha").write_bytes(raw)
@@ -81,6 +87,7 @@ def build_entry(app_dir: Path) -> dict:
         "license": meta.get("license", "MPL-2.0"),
         "category": manifest.get("category", "other"),
         "capabilities": manifest.get("capabilities", []),
+        "kind": report.get("kind", "flow"),
         "min_os": report["min_os"],
         "nodes": report["nodes"],
         "estimated_us": report["estimated_us"],
@@ -102,7 +109,8 @@ def build_entry(app_dir: Path) -> dict:
 
 
 def build_index() -> dict:
-    app_dirs = sorted(d for d in (ROOT / "apps").iterdir() if (d / "app.nhs").exists())
+    app_dirs = sorted(d for d in (ROOT / "apps").iterdir()
+                  if (d / "app.nhs").exists() or (d / "readout.json").exists())
     entries = [build_entry(d) for d in app_dirs]
     ids = [e["id"] for e in entries]
     duplicates = {i for i in ids if ids.count(i) > 1}
@@ -135,8 +143,10 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"indexed {len(index['apps'])} app(s)")
     for entry in index["apps"]:
-        print(f"  {entry['id']:<12} v{entry['version']:<8} {entry['nodes']:>2} nodes  "
-              f"~{entry['estimated_us']:>4}us  {entry['package']['size']:>5}B  {entry['min_os']}")
+        shape = (f"{entry['nodes']:>2} nodes  ~{entry['estimated_us']:>4}us"
+                 if entry.get("kind", "flow") == "flow" else "     readout     ")
+        print(f"  {entry['id']:<12} v{entry['version']:<8} {shape}  "
+              f"{entry['package']['size']:>5}B  {entry['min_os']}")
 
     if args.check:
         dirty = subprocess.run(

@@ -1,0 +1,9 @@
+{
+  "name": {"en": "System Monitor", "ja": "システムモニタ", "zh-CN": "系统监视器"},
+  "summary": {
+    "en": "Live scheduler, service and app activity for a device.",
+    "ja": "デバイスのスケジューラ・サービス・アプリの稼働状況をリアルタイムに表示します。",
+    "zh-CN": "实时显示设备的调度器、服务与应用运行状况。"
+  },
+  "license": "MPL-2.0"
+}

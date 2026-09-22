@@ -1,0 +1,89 @@
+{
+  "nhapp": 1,
+  "kind": "readout",
+  "manifest": {
+    "id": "sysmon",
+    "name": "System Monitor",
+    "version": "1.0.0",
+    "author": "wenzi7777",
+    "summary": "Live scheduler, service and app activity for a device.",
+    "category": "diagnostics",
+    "min_os": "v1.2.0",
+    "icon": "activity"
+  },
+  "readout": {
+    "refresh_ms": 1000,
+    "sources": [
+      {"id": "sched", "command": "task_list"},
+      {"id": "tasks", "command": "task_list", "path": "tasks"},
+      {"id": "svcs", "command": "service_list", "path": "services"},
+      {"id": "apps", "command": "app_list", "path": "apps"},
+      {"id": "appmeta", "command": "app_list"},
+      {"id": "mem", "command": "memory_status"},
+      {"id": "scan", "command": "scan_health"}
+    ],
+    "sections": [
+      {
+        "kind": "stats",
+        "title": "Overview",
+        "items": [
+          {"label": "Scheduler load", "source": "sched", "field": "busy_permille", "format": "permille",
+           "hint": "Share of wall time spent dispatching tasks. A tick that performs a scan legitimately consumes most of a frame, so a high figure here is normal."},
+          {"label": "Scan rate", "source": "scan", "field": "actual_scan_fps", "format": "int",
+           "hint": "Frames actually completed per second."},
+          {"label": "Missed deadlines", "source": "scan", "field": "overrun_frames", "format": "int",
+           "hint": "Cumulative frames that ran late. This, not scheduler load, is the authority on whether sampling is keeping up."},
+          {"label": "Scan time", "source": "scan", "field": "last_scan_duration_us", "format": "micros"},
+          {"label": "Apps allowance", "source": "appmeta", "field": "budget_us", "format": "micros",
+           "hint": "What all apps together may spend per dispatch. Shrinks automatically if the scan starts missing deadlines."},
+          {"label": "Apps used", "source": "appmeta", "field": "last_total_us", "format": "micros"},
+          {"label": "Heap free", "source": "mem", "field": "heap_free", "format": "bytes"},
+          {"label": "Largest free block", "source": "mem", "field": "heap_largest_free_block", "format": "bytes",
+           "hint": "Fragmentation. A large free heap made of small pieces will still fail a big allocation, such as the ones WiFi makes."},
+          {"label": "Heap low-water", "source": "mem", "field": "heap_min_free", "format": "bytes",
+           "hint": "The least free heap seen since boot."}
+        ]
+      },
+      {
+        "kind": "table",
+        "title": "Tasks",
+        "source": "tasks",
+        "sort": {"field": "cpu_permille", "desc": true},
+        "columns": [
+          {"label": "Task", "field": "name", "format": "text"},
+          {"label": "CPU", "field": "cpu_permille", "format": "permille", "bar": true, "bar_max": 1000},
+          {"label": "Last", "field": "last_us", "format": "micros"},
+          {"label": "Peak", "field": "max_us", "format": "micros"},
+          {"label": "Calls", "field": "invocations", "format": "int"},
+          {"label": "Enabled", "field": "enabled", "format": "bool"}
+        ]
+      },
+      {
+        "kind": "table",
+        "title": "Apps",
+        "source": "apps",
+        "sort": {"field": "last_us", "desc": true},
+        "columns": [
+          {"label": "Slot", "field": "name", "format": "text"},
+          {"label": "State", "field": "state", "format": "text"},
+          {"label": "Allowance", "field": "budget_us", "format": "micros"},
+          {"label": "Last", "field": "last_us", "format": "micros"},
+          {"label": "Peak", "field": "max_us", "format": "micros"},
+          {"label": "Overruns", "field": "overruns", "format": "int"},
+          {"label": "Events", "field": "events", "format": "int"}
+        ]
+      },
+      {
+        "kind": "table",
+        "title": "Services",
+        "source": "svcs",
+        "columns": [
+          {"label": "Service", "field": "name", "format": "text"},
+          {"label": "State", "field": "state", "format": "text"},
+          {"label": "Restarts", "field": "restarts", "format": "int"},
+          {"label": "Health failures", "field": "health_failures", "format": "int"}
+        ]
+      }
+    ]
+  }
+}

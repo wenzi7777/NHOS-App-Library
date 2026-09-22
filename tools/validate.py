@@ -16,6 +16,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from readoutset import (  # noqa: E402
+    ALLOWED_SOURCES,
+    FORMATS,
+    MAX_COLUMNS,
+    MAX_REFRESH_MS,
+    MAX_SECTIONS,
+    MAX_STATS,
+    MIN_REFRESH_MS,
+    SECTION_KINDS,
+)
 from opset import (  # noqa: E402
     APP_ID_RE,
     CAPABILITIES,
@@ -132,15 +142,83 @@ def validate_graph(nodes: list, manifest: dict) -> dict:
     }
 
 
+def validate_readout(readout: dict) -> dict:
+    """A readout names commands to read and widgets to draw. Nothing else."""
+    _require(isinstance(readout, dict), "missing_readout")
+
+    refresh = readout.get("refresh_ms", 1000)
+    _require(isinstance(refresh, int) and MIN_REFRESH_MS <= refresh <= MAX_REFRESH_MS,
+             f"invalid_refresh_ms:{refresh}")
+
+    sources = readout.get("sources")
+    _require(isinstance(sources, list) and sources, "missing_sources")
+    _require(len(sources) <= 8, f"too_many_sources:{len(sources)}")
+    ids = set()
+    for source in sources:
+        _require(isinstance(source, dict), "invalid_source")
+        source_id = str(source.get("id") or "")
+        _require(bool(re.match(r"^[a-z][a-z0-9_]*$", source_id)), f"invalid_source_id:{source_id}")
+        _require(source_id not in ids, f"duplicate_source_id:{source_id}")
+        ids.add(source_id)
+        command = str(source.get("command") or "")
+        # A readout is read-only by construction: it cannot be used to
+        # reconfigure or write to a device, whatever its author intended.
+        _require(command in ALLOWED_SOURCES, f"readout_source_not_allowed:{command}")
+
+    sections = readout.get("sections")
+    _require(isinstance(sections, list) and sections, "missing_sections")
+    _require(len(sections) <= MAX_SECTIONS, f"too_many_sections:{len(sections)}")
+    for section in sections:
+        _require(isinstance(section, dict), "invalid_section")
+        kind = str(section.get("kind") or "")
+        _require(kind in SECTION_KINDS, f"unknown_section_kind:{kind}")
+        _require(bool(str(section.get("title") or "").strip()), "missing_section_title")
+
+        if kind == "stats":
+            items = section.get("items")
+            _require(isinstance(items, list) and items, "missing_stats_items")
+            _require(len(items) <= MAX_STATS, f"too_many_stats:{len(items)}")
+            for item in items:
+                _require(isinstance(item, dict), "invalid_stat")
+                _require(str(item.get("source")) in ids, f"unknown_source:{item.get('source')}")
+                _require(bool(str(item.get("field") or "")), "missing_stat_field")
+                _require(str(item.get("format", "raw")) in FORMATS,
+                         f"unknown_format:{item.get('format')}")
+        else:
+            _require(str(section.get("source")) in ids, f"unknown_source:{section.get('source')}")
+            columns = section.get("columns")
+            _require(isinstance(columns, list) and columns, "missing_columns")
+            _require(len(columns) <= MAX_COLUMNS, f"too_many_columns:{len(columns)}")
+            for column in columns:
+                _require(isinstance(column, dict), "invalid_column")
+                _require(bool(str(column.get("field") or "")), "missing_column_field")
+                _require(str(column.get("format", "raw")) in FORMATS,
+                         f"unknown_format:{column.get('format')}")
+
+    return {"sources": len(sources), "sections": len(sections), "refresh_ms": refresh}
+
+
 def validate_package(doc: dict, raw: bytes | None = None) -> dict:
     _require(isinstance(doc, dict), "not_a_package")
     _require(doc.get("nhapp") == 1, f"unsupported_package_version:{doc.get('nhapp')}")
-    _require(str(doc.get("kind") or "flow") == "flow", f"unsupported_kind:{doc.get('kind')}")
+    kind = str(doc.get("kind") or "flow")
+    _require(kind in ("flow", "readout"), f"unsupported_kind:{doc.get('kind')}")
 
     manifest = doc.get("manifest")
     _require(isinstance(manifest, dict), "missing_manifest")
     validate_manifest(manifest)
-    report = validate_graph(doc.get("nodes"), manifest)
+
+    if kind == "readout":
+        # Stored by the device but never dispatched: it holds a registry entry
+        # and nothing else -- no nodes, no budget, no slot.
+        _require("nodes" not in doc, "readout_must_not_declare_nodes")
+        report = validate_readout(doc.get("readout"))
+        report.update({"kind": "readout", "nodes": 0, "estimated_us": 0,
+                       "memory_bytes": 0, "min_os": str(manifest.get("min_os") or "v1.0.0")})
+    else:
+        _require("readout" not in doc, "flow_must_not_declare_a_readout")
+        report = validate_graph(doc.get("nodes"), manifest)
+        report["kind"] = "flow"
 
     if raw is None:
         raw = canonical_bytes(doc)

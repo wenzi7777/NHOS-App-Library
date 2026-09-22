@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "product": "NHOS App Library",
-  "generated_at": "2026-09-22T16:10:32Z",
+  "generated_at": "2026-09-22T16:58:44Z",
   "cell_count": 225,
   "apps": [
     {
@@ -24,6 +24,7 @@
         "emit_event",
         "read_matrix"
       ],
+      "kind": "flow",
       "min_os": "v1.1.0",
       "nodes": 9,
       "estimated_us": 140,
@@ -59,6 +60,7 @@
         "emit_event",
         "read_matrix"
       ],
+      "kind": "flow",
       "min_os": "v1.0.0",
       "nodes": 4,
       "estimated_us": 70,
@@ -94,6 +96,7 @@
         "emit_event",
         "read_matrix"
       ],
+      "kind": "flow",
       "min_os": "v1.1.0",
       "nodes": 11,
       "estimated_us": 119,
@@ -129,6 +132,7 @@
         "emit_event",
         "read_matrix"
       ],
+      "kind": "flow",
       "min_os": "v1.0.0",
       "nodes": 4,
       "estimated_us": 70,
@@ -143,6 +147,36 @@
       "readme_url": {
         "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/heel_strike/README.md"
       }
+    },
+    {
+      "id": "sysmon",
+      "name": {
+        "en": "System Monitor",
+        "ja": "システムモニタ",
+        "zh-CN": "系统监视器"
+      },
+      "summary": {
+        "en": "Live scheduler, service and app activity for a device.",
+        "ja": "デバイスのスケジューラ・サービス・アプリの稼働状況をリアルタイムに表示します。",
+        "zh-CN": "实时显示设备的调度器、服务与应用运行状况。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "diagnostics",
+      "capabilities": [],
+      "kind": "readout",
+      "min_os": "v1.2.0",
+      "nodes": 0,
+      "estimated_us": 0,
+      "memory_bytes": 0,
+      "device_path": "apps/sysmon.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/sysmon/sysmon-1.0.0.nha",
+        "sha256": "f8e046979fb5254897097e153db0fcf3cf9eb5bc9018de82b0d354c5cc04e98f",
+        "size": 3237
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sysmon/icon.svg"
     }
   ]
 }
