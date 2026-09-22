@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Contact Area",
+    "ja": "接触面積",
+    "zh-CN": "接触面积"
+  },
+  "summary": {
+    "en": "Emits contact_begin and contact_end from active cell count.",
+    "ja": "アクティブセル数から接触の開始と終了を発行します。",
+    "zh-CN": "依据活跃单元数发出接触开始与结束事件。"
+  },
+  "license": "MPL-2.0"
+}

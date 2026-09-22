@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Left/Right Balance",
+    "ja": "左右バランス",
+    "zh-CN": "左右平衡"
+  },
+  "summary": {
+    "en": "Normalised left-right load difference, -1 to +1.",
+    "ja": "左右の荷重差を -1〜+1 に正規化して出力します。",
+    "zh-CN": "将左右载荷差正规化为 -1 至 +1 输出。"
+  },
+  "license": "MPL-2.0"
+}

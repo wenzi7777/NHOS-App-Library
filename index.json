@@ -1,0 +1,148 @@
+{
+  "schema": 1,
+  "product": "NHOS App Library",
+  "generated_at": "2026-09-22T12:11:26Z",
+  "cell_count": 225,
+  "apps": [
+    {
+      "id": "balance",
+      "name": {
+        "en": "Left/Right Balance",
+        "ja": "左右バランス",
+        "zh-CN": "左右平衡"
+      },
+      "summary": {
+        "en": "Normalised left-right load difference, -1 to +1.",
+        "ja": "左右の荷重差を -1〜+1 に正規化して出力します。",
+        "zh-CN": "将左右载荷差正规化为 -1 至 +1 输出。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "biomechanics",
+      "capabilities": [
+        "emit_event",
+        "read_matrix"
+      ],
+      "min_os": "v1.1.0",
+      "nodes": 9,
+      "estimated_us": 30,
+      "memory_bytes": 120,
+      "device_path": "apps/balance.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/balance/balance-1.0.0.nha",
+        "sha256": "04f62b1c97a2a3e585f7059ce43779e69d39345432bf351e5235b9a9c96a34b0",
+        "size": 649
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/balance/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/balance/README.md"
+      }
+    },
+    {
+      "id": "contact",
+      "name": {
+        "en": "Contact Area",
+        "ja": "接触面積",
+        "zh-CN": "接触面积"
+      },
+      "summary": {
+        "en": "Emits contact_begin and contact_end from active cell count.",
+        "ja": "アクティブセル数から接触の開始と終了を発行します。",
+        "zh-CN": "依据活跃单元数发出接触开始与结束事件。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "sensing",
+      "capabilities": [
+        "emit_event",
+        "read_matrix"
+      ],
+      "min_os": "v1.0.0",
+      "nodes": 4,
+      "estimated_us": 15,
+      "memory_bytes": 0,
+      "device_path": "apps/contact.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/contact/contact-1.0.0.nha",
+        "sha256": "0cc573580a9b92b4d8903ddeec6585b7279b152f54d2976acecf7dc9bc32fd35",
+        "size": 452
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/contact/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/contact/README.md"
+      }
+    },
+    {
+      "id": "features",
+      "name": {
+        "en": "Feature Extractor",
+        "ja": "特徴量抽出",
+        "zh-CN": "特征提取"
+      },
+      "summary": {
+        "en": "Total force, peak, contact area and centre of pressure per frame.",
+        "ja": "フレームごとの総荷重・ピーク・接触面積・圧力中心を算出します。",
+        "zh-CN": "逐帧计算总力、峰值、接触面积与压力中心。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "sensing",
+      "capabilities": [
+        "emit_event",
+        "read_matrix"
+      ],
+      "min_os": "v1.1.0",
+      "nodes": 11,
+      "estimated_us": 31,
+      "memory_bytes": 0,
+      "device_path": "apps/features.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/features/features-1.0.0.nha",
+        "sha256": "825ba2384b50a8edcee7eac76f6d0ffa8376c20a78f36bf6c18467d5fea88513",
+        "size": 800
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/features/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/features/README.md"
+      }
+    },
+    {
+      "id": "heel_strike",
+      "name": {
+        "en": "Heel Strike",
+        "ja": "踵接地",
+        "zh-CN": "足跟触地"
+      },
+      "summary": {
+        "en": "Emits heel_strike on the rear half of the mat.",
+        "ja": "マット後半部の荷重から踵接地イベントを発行します。",
+        "zh-CN": "依据垫面后半部的载荷发出足跟触地事件。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "biomechanics",
+      "capabilities": [
+        "emit_event",
+        "read_matrix"
+      ],
+      "min_os": "v1.0.0",
+      "nodes": 4,
+      "estimated_us": 15,
+      "memory_bytes": 0,
+      "device_path": "apps/heel_strike.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/heel_strike/heel_strike-1.0.0.nha",
+        "sha256": "50559293f213887f8d7982c94cc48f526c1a42fa4ed7dce6049ad2be7348a4d5",
+        "size": 493
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/heel_strike/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/heel_strike/README.md"
+      }
+    }
+  ]
+}

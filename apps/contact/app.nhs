@@ -1,0 +1,13 @@
+# Contact begin/end from how many cells are loaded at all.
+app contact {
+  name    "Contact Area"
+  version 1.0.0
+  author  wenzi7777
+  summary "Emits contact from active cell count."
+  category sensing
+  icon    touch
+}
+
+signal loaded_cells = active(3.0)
+
+event contact when loaded_cells > 1 hyst 0.5 for 40ms

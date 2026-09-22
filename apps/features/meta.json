@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Feature Extractor",
+    "ja": "特徴量抽出",
+    "zh-CN": "特征提取"
+  },
+  "summary": {
+    "en": "Total force, peak, contact area and centre of pressure per frame.",
+    "ja": "フレームごとの総荷重・ピーク・接触面積・圧力中心を算出します。",
+    "zh-CN": "逐帧计算总力、峰值、接触面积与压力中心。"
+  },
+  "license": "MPL-2.0"
+}

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wenzi7777/NHOS-App-Library/schema/index.schema.json",
+  "title": "NHOS App Library catalog",
+  "type": "object",
+  "required": ["schema", "apps"],
+  "properties": {
+    "schema": {"const": 1},
+    "product": {"type": "string"},
+    "generated_at": {"type": "string"},
+    "cell_count": {"type": "integer", "description": "Cell count the estimated_us figures were computed against."},
+    "apps": {"type": "array", "items": {"$ref": "#/$defs/entry"}}
+  },
+  "$defs": {
+    "localised": {
+      "type": "object",
+      "required": ["en"],
+      "properties": {"en": {"type": "string"}, "ja": {"type": "string"}, "zh-CN": {"type": "string"}}
+    },
+    "entry": {
+      "type": "object",
+      "required": ["id", "name", "summary", "version", "author", "min_os", "device_path", "package"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,14}$"},
+        "name": {"$ref": "#/$defs/localised"},
+        "summary": {"$ref": "#/$defs/localised"},
+        "version": {"type": "string"},
+        "author": {"type": "string"},
+        "license": {"type": "string"},
+        "category": {"type": "string"},
+        "capabilities": {"type": "array", "items": {"type": "string"}},
+        "min_os": {"type": "string"},
+        "nodes": {"type": "integer"},
+        "estimated_us": {"type": "integer"},
+        "memory_bytes": {"type": "integer"},
+        "device_path": {"type": "string"},
+        "icon_url": {"type": "string"},
+        "readme_url": {"type": "object"},
+        "homepage": {"type": "string"},
+        "package": {
+          "type": "object",
+          "required": ["url", "sha256", "size"],
+          "properties": {
+            "url": {"type": "string"},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "size": {"type": "integer"}
+          }
+        }
+      }
+    }
+  }
+}

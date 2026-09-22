@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wenzi7777/NHOS-App-Library/schema/package.schema.json",
+  "title": "NHOS app package (.nha)",
+  "description": "A single JSON file carrying a manifest and a rule graph. The graph keys (name, nodes) sit at the TOP LEVEL so the firmware's existing RuleEngineApp::parse() can read the package body unmodified -- a .nha is a strict superset of a v1.0.0 apps/rules.json.",
+  "type": "object",
+  "required": ["nhapp", "manifest", "nodes"],
+  "additionalProperties": false,
+  "properties": {
+    "nhapp": {"const": 1, "description": "Package format version."},
+    "kind": {"enum": ["rules"], "default": "rules", "description": "Reserved: a future scripted runtime would be a different kind, and an older firmware must refuse rather than misread it."},
+    "name": {"type": "string", "maxLength": 23, "description": "Graph name, surfaced in app status."},
+    "manifest": {"$ref": "#/$defs/manifest"},
+    "nodes": {
+      "type": "array", "minItems": 1, "maxItems": 12,
+      "items": {"$ref": "#/$defs/node"}
+    }
+  },
+  "$defs": {
+    "manifest": {
+      "type": "object",
+      "required": ["id", "name", "version", "author", "summary"],
+      "properties": {
+        "id": {
+          "type": "string", "pattern": "^[a-z][a-z0-9_]{0,14}$",
+          "description": "Device filename stem. Capped at 15 chars because /files/apps/<id>.nha must fit SPIFFS' 31-character path limit."
+        },
+        "name": {"type": "string", "maxLength": 23},
+        "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+        "author": {"type": "string", "maxLength": 23},
+        "summary": {"type": "string", "maxLength": 63},
+        "category": {"type": "string", "maxLength": 15},
+        "min_os": {"type": "string", "pattern": "^v?\\d+\\.\\d+\\.\\d+$"},
+        "capabilities": {
+          "type": "array",
+          "items": {"enum": ["read_matrix", "read_imu", "emit_event", "drive_led", "write_file"]}
+        },
+        "budget_us": {"type": "integer", "minimum": 0},
+        "icon": {"type": "string", "maxLength": 15}
+      },
+      "not": {"anyOf": [
+        {"required": ["nodes"]}, {"required": ["kind"]}, {"required": ["nhapp"]}
+      ]}
+    },
+    "node": {
+      "type": "object",
+      "required": ["op"],
+      "properties": {
+        "op": {"type": "string"},
+        "in": {
+          "oneOf": [
+            {"type": "integer", "minimum": 0},
+            {"type": "array", "items": {"type": "integer", "minimum": 0}}
+          ],
+          "description": "Index of an EARLIER node. Backward-only references make a cycle unrepresentable and the array order a valid evaluation order."
+        },
+        "value": {"type": "number"},
+        "hysteresis": {"type": "number"},
+        "lo": {"type": "number"},
+        "hi": {"type": "number"},
+        "ms": {"type": "integer", "minimum": 0, "maximum": 65535},
+        "window": {"type": "integer", "minimum": 1, "maximum": 240},
+        "r0": {"type": "integer", "minimum": 0}, "c0": {"type": "integer", "minimum": 0},
+        "r1": {"type": "integer", "minimum": 0}, "c1": {"type": "integer", "minimum": 0},
+        "event": {"type": "string", "maxLength": 23},
+        "field": {"type": "string"},
+        "rgb": {"type": "string"}
+      }
+    }
+  }
+}

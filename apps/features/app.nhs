@@ -1,0 +1,25 @@
+# The former built-in FeatureExtractor, written as a rule graph.
+#
+# This app is the acceptance test for the op set: if the native extractor
+# cannot be expressed here, the op set is not complete enough to have replaced
+# it. One features() sweep computes everything; each feature() reads a field
+# back out of that same sweep rather than sweeping again.
+app features {
+  name    "Feature Extractor"
+  version 1.0.0
+  author  wenzi7777
+  summary "Total force, peak, contact area and centre of pressure."
+  category sensing
+  icon    chart
+}
+
+signal total_force  = feature(total_force)
+signal peak         = feature(peak)
+signal peak01       = feature(peak01)
+signal peak_index   = feature(peak_index)
+signal active_cells = feature(active_cells)
+signal centroid_row = feature(centroid_row)
+signal centroid_col = feature(centroid_col)
+signal in_contact   = feature(in_contact)
+
+event contact when in_contact > 0.5

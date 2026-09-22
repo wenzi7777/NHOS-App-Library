@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Heel Strike",
+    "ja": "踵接地",
+    "zh-CN": "足跟触地"
+  },
+  "summary": {
+    "en": "Emits heel_strike on the rear half of the mat.",
+    "ja": "マット後半部の荷重から踵接地イベントを発行します。",
+    "zh-CN": "依据垫面后半部的载荷发出足跟触地事件。"
+  },
+  "license": "MPL-2.0"
+}

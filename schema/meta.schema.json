@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wenzi7777/NHOS-App-Library/schema/meta.schema.json",
+  "title": "Library-only app metadata",
+  "description": "Everything the catalog shows but the device has no room for. The on-device manifest stays single-language ASCII; translations live here.",
+  "type": "object",
+  "properties": {
+    "name": {"type": ["string", "object"]},
+    "summary": {"type": ["string", "object"]},
+    "license": {"type": "string"},
+    "homepage": {"type": "string"},
+    "screenshots": {"type": "array", "items": {"type": "string"}}
+  }
+}

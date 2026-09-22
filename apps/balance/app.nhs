@@ -1,0 +1,25 @@
+# Normalised left/right load difference -- impossible before v1.1.0, which is
+# what added the arithmetic operators.
+app balance {
+  name    "Left/Right Balance"
+  version 1.0.0
+  author  wenzi7777
+  summary "Normalised left-right load difference, -1 to +1."
+  category biomechanics
+  icon    scale
+}
+
+region left  = rows 0..14, cols 0..6
+region right = rows 0..14, cols 8..14
+
+signal left_load  = sum(left)
+signal right_load = sum(right)
+
+# left_load and right_load are each used twice but cost one node each -- a
+# signal is a name for a node, not a copy of it.
+signal bias = (left_load - right_load) / (left_load + right_load)
+
+# Half a second of averaging, so a sway is reported and a footfall is not.
+signal steady_bias = mean(bias, 30)
+
+event lean_left when steady_bias > 0.25 hyst 0.05 for 250ms

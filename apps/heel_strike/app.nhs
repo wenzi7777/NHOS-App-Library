@@ -1,0 +1,17 @@
+# Heel strike detection from the rear half of the mat.
+app heel_strike {
+  name    "Heel Strike"
+  version 1.0.0
+  author  wenzi7777
+  summary "Emits heel_strike on the rear half of the mat."
+  category biomechanics
+  icon    foot
+}
+
+region heel = rows 8..14, cols 0..14
+
+signal heel_load = sum(heel)
+
+# Hysteresis stops a load resting on the threshold from firing every frame;
+# the 30ms hold rejects the bounce as the foot settles.
+event heel_strike when heel_load > 40 hyst 6 for 30ms
