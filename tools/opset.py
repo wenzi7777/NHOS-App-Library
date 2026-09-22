@@ -28,12 +28,18 @@ MAX_APP_ID = 15
 APP_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,14}$")
 RESERVED_APP_IDS = {"index"}
 
-# Cost constants. Must equal RuleEngineApp::kCellOpNsPerCell / kScalarOpNs.
-CELL_OP_NS_PER_CELL = 60
-SCALAR_OP_NS = 400
-# Features does a compare plus two conditional multiply-adds per cell, so it is
-# budgeted at twice a plain sweep rather than pretending it is free.
-FEATURES_NS_PER_CELL = 120
+# Cost constants. Must equal FlowApp::kCellOpNsPerCell / kScalarOpNs /
+# kFeaturesNsPerCell.
+#
+# MEASURED on v1.5.F (ESP32-S3 @ 240MHz, 14x14), not guessed: a flat sweep runs
+# about 86ns per cell and a features sweep about 235ns. The original 60/120/400
+# under-estimated by 1.4x to 9x, which made the install-time estimate
+# optimistic exactly where an author relies on it. These carry roughly 2x
+# margin over the measurements.
+CELL_OP_NS_PER_CELL = 300
+SCALAR_OP_NS = 600
+# features does a compare plus two conditional multiply-adds per cell.
+FEATURES_NS_PER_CELL = 500
 
 
 CAPABILITIES = {

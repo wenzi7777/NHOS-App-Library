@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "product": "NHOS App Library",
-  "generated_at": "2026-09-22T12:41:49Z",
+  "generated_at": "2026-09-22T16:10:32Z",
   "cell_count": 225,
   "apps": [
     {
@@ -26,7 +26,7 @@
       ],
       "min_os": "v1.1.0",
       "nodes": 9,
-      "estimated_us": 30,
+      "estimated_us": 140,
       "memory_bytes": 120,
       "device_path": "apps/balance.nha",
       "package": {
@@ -61,7 +61,7 @@
       ],
       "min_os": "v1.0.0",
       "nodes": 4,
-      "estimated_us": 15,
+      "estimated_us": 70,
       "memory_bytes": 0,
       "device_path": "apps/contact.nha",
       "package": {
@@ -96,7 +96,7 @@
       ],
       "min_os": "v1.1.0",
       "nodes": 11,
-      "estimated_us": 31,
+      "estimated_us": 119,
       "memory_bytes": 0,
       "device_path": "apps/features.nha",
       "package": {
@@ -131,7 +131,7 @@
       ],
       "min_os": "v1.0.0",
       "nodes": 4,
-      "estimated_us": 15,
+      "estimated_us": 70,
       "memory_bytes": 0,
       "device_path": "apps/heel_strike.nha",
       "package": {

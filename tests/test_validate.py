@@ -173,13 +173,12 @@ class CostModelTests(unittest.TestCase):
 
     def test_gate_is_costed_at_its_worst_case(self):
         # Charging the average would understate the bound and make the install
-        # estimate a lie on the frames that matter.
-        gated = [{"op": "budget_load"}, {"op": "total"}, {"op": "gate", "in": [0, 1]}]
-        self.assertEqual(
-            opset.graph_cost_us(gated, 225),
-            opset.graph_cost_us([{"op": "budget_load"}, {"op": "total"}], 225)
-            + (opset.SCALAR_OP_NS + 999) // 1000,
-        )
+        # estimate a lie on the frames that matter. Compared in nanoseconds so
+        # the total's single rounding does not muddy the comparison.
+        ungated = [{"op": "budget_load"}, {"op": "total"}]
+        gated = ungated + [{"op": "gate", "in": [0, 1]}]
+        cost = lambda nodes: sum(opset.node_cost_ns(n, 225) for n in nodes)
+        self.assertEqual(cost(gated) - cost(ungated), opset.SCALAR_OP_NS)
 
     def test_window_memory_is_reserved_up_front(self):
         self.assertEqual(
