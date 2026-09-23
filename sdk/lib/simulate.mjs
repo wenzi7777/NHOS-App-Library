@@ -22,14 +22,24 @@
  * - `budget_load` / `grace_left` read whatever `setBudget()` last latched,
  *   the same way a Budget event does on the device, so a self-degrading gate
  *   can be exercised offline.
+ * - `button` is true for one frame per `pressButton()`, with a false frame
+ *   between presses so each is its own rising edge, and only when the package
+ *   declares `button` -- the device delivers presses to nobody else. At most
+ *   MAX_PENDING_PRESSES wait; a press is taken even if a gate skips the node.
+ * - The OLED rows are rebuilt every frame from the nodes that ran, so a row
+ *   drawn inside a closed gate is blank, and a package without `display`
+ *   draws nothing. `oledRows()` returns them rendered, via oled.mjs.
  */
 
 import {
   FEATURE_FIELDS,
   LED_COLOURS,
+  MAX_PENDING_PRESSES,
+  OLED_ROWS,
   PRESSURE_ACTIVE_THRESHOLD,
   PRESSURE_FULL_SCALE,
 } from "./opset.mjs";
+import { formatOledTextLine, oledBarGeometry } from "./oled.mjs";
 
 const f32 = Math.fround;
 const ACTIVE = f32(PRESSURE_ACTIVE_THRESHOLD);
@@ -62,6 +72,17 @@ const FULL_SCALE = f32(PRESSURE_FULL_SCALE);
  * @property {string} colour
  * @property {readonly [number, number, number]} rgb
  * @property {number} node
+ */
+
+/**
+ * One OLED row as the device's "app" page draws it.
+ * @typedef {object} OledRow
+ * @property {"text"|"bar"} kind
+ * @property {string} label
+ * @property {number} value
+ * @property {number} node the node that drew it
+ * @property {string} [text] the whole row, for a text row (OLED_COLS characters)
+ * @property {import("./oled.mjs").OledBarGeometry} [bar] for a bar row
  */
 
 /**
@@ -152,6 +173,13 @@ export class Simulator {
     const caps = new Set(Array.isArray(manifest.capabilities) ? manifest.capabilities : []);
     this.canEmit = caps.has("emit_event");
     this.canDriveLed = caps.has("drive_led");
+    this.canDisplay = caps.has("display");
+    this.hearsButton = caps.has("button");
+    this.pendingPresses = 0;
+    this.pressShown = false;
+    /** Which node drew each OLED row on the last frame, or -1. */
+    /** @type {number[]} */
+    this.displayNode = new Array(OLED_ROWS).fill(-1);
     this.appName = options.appName ?? String(manifest.id ?? pkg.name ?? "flow");
     this.budgetLoad = 0;
     this.graceLeft = 0;
@@ -184,6 +212,14 @@ export class Simulator {
     this.frames = 0;
     this.degraded = false;
     this.degradations = 0;
+    this.pendingPresses = 0;
+    this.pressShown = false;
+    this.displayNode = new Array(OLED_ROWS).fill(-1);
+  }
+
+  /** A short press of the action button, seen by the next free frame. */
+  pressButton() {
+    if (this.hearsButton && this.pendingPresses < MAX_PENDING_PRESSES) this.pendingPresses += 1;
   }
 
   /**
@@ -239,6 +275,15 @@ export class Simulator {
     let skipUntil = 0;
     let skippedAny = false;
     this.frames += 1;
+    let pressed = false;
+    if (this.pressShown) {
+      this.pressShown = false;
+    } else if (this.pendingPresses !== 0) {
+      this.pendingPresses -= 1;
+      pressed = true;
+      this.pressShown = true;
+    }
+    this.displayNode.fill(-1);
 
     for (let i = 0; i < count; i += 1) {
       const node = this.nodes[i];
@@ -432,6 +477,23 @@ export class Simulator {
           if (!state.boolResult && span > 0) skipUntil = Math.min(i + 1 + span, count);
           break;
         }
+        case "mod": {
+          const divisor = b().result;
+          // Zero rather than NaN, as div does. JavaScript's % is C's fmod.
+          state.result = divisor !== 0 ? f32(a().result % divisor) : 0;
+          break;
+        }
+        case "button":
+          state.boolResult = pressed;
+          state.result = pressed ? 1 : 0;
+          break;
+        case "oled_text":
+        case "oled_bar":
+          // Two nodes on one row is legitimate (two gated pages): the later
+          // one wins, as on the device.
+          state.result = a().result;
+          if (Number(node.row) >= 0 && Number(node.row) < OLED_ROWS) this.displayNode[Number(node.row)] = i;
+          break;
         case "budget_load": state.result = this.budgetLoad; break;
         case "grace_left": state.result = this.graceLeft; break;
         default:
@@ -448,6 +510,25 @@ export class Simulator {
       this.record(frame, "degraded", skippedAny ? "rise" : "fall");
     }
     return this.events.slice(firstEvent);
+  }
+
+  /**
+   * The OLED rows the last frame drew, `null` where it drew nothing.
+   * @returns {(OledRow|null)[]}
+   */
+  oledRows() {
+    return this.displayNode.map((index) => {
+      if (!this.canDisplay || index < 0) return null;
+      const node = this.nodes[index];
+      const label = String(node.label ?? "");
+      const value = this.states[index].result;
+      if (node.op === "oled_bar") {
+        const bar = oledBarGeometry(label.length, value, Number(node.lo ?? 0), Number(node.hi ?? 0));
+        return { kind: "bar", label, value, node: index, bar };
+      }
+      const text = formatOledTextLine(label, value, Number(node.digits ?? 0));
+      return { kind: "text", label, value, node: index, text };
+    });
   }
 
   /**

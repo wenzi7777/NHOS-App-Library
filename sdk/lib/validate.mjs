@@ -20,9 +20,13 @@ import {
   MAX_DEBOUNCE_MS,
   MAX_EVENT_NAME,
   MAX_NODES,
+  MAX_OLED_DIGITS,
+  MAX_OLED_LABEL,
   MAX_PACKAGE_BYTES,
   MAX_REGION_INDEX,
   MAX_WINDOW,
+  OLED_LABEL_RE,
+  OLED_ROWS,
   OPS,
   RESERVED_APP_IDS,
   WINDOW_POOL,
@@ -132,6 +136,10 @@ export function validateGraph(nodes, manifest, options = {}) {
   require(nodes.length <= MAX_NODES, `too_many_nodes:${nodes.length}>${MAX_NODES}`);
 
   const caps = new Set(/** @type {unknown[]} */ (manifest.capabilities ?? []).map(String));
+  // The device evaluates a graph once per frame and wakes it for frames only
+  // when it may read the matrix. An empty list means the device's default,
+  // which includes it; a list without it means a graph that never runs.
+  require(caps.size === 0 || caps.has("read_matrix"), "never_evaluated:read_matrix_not_declared");
   let poolUsed = 0;
   nodes.forEach((node, index) => {
     require(isObject(node), `node_not_an_object:${index}`, index);
@@ -170,6 +178,23 @@ export function validateGraph(nodes, manifest, options = {}) {
       require(caps.has("drive_led"), "capability_not_declared:drive_led", index);
       require(Object.hasOwn(LED_COLOURS, text(node.rgb)), `unknown_colour:${text(node.rgb)}`, index);
     }
+    if (name === "oled_text" || name === "oled_bar") {
+      require(caps.has("display"), "capability_not_declared:display", index);
+      require(isInt(node.row) && /** @type {number} */ (node.row) >= 0 && /** @type {number} */ (node.row) < OLED_ROWS,
+        `invalid_oled_row:${text(node.row)}`, index);
+      const label = node.label;
+      require(typeof label === "string" && label.length <= MAX_OLED_LABEL && OLED_LABEL_RE.test(label),
+        `invalid_oled_label:${text(label)}`, index);
+    }
+    if (name === "oled_text" && "digits" in node) {
+      require(isInt(node.digits) && /** @type {number} */ (node.digits) >= 0 && /** @type {number} */ (node.digits) <= MAX_OLED_DIGITS,
+        `invalid_oled_digits:${text(node.digits)}`, index);
+    }
+    if (name === "oled_bar") {
+      require(typeof node.lo === "number" && typeof node.hi === "number" && node.hi > node.lo,
+        `invalid_bar_range:${text(node.lo)}..${text(node.hi)}`, index);
+    }
+    if (name === "button") require(caps.has("button"), "capability_not_declared:button", index);
     if (name === "feature_get") {
       const field = text(node.field);
       require(FEATURE_FIELDS.includes(field), `unknown_feature_field:${field}`, index);

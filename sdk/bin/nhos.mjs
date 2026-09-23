@@ -7,6 +7,7 @@
  *   node sdk/bin/nhos.mjs validate [app.nha ...] [--cells N]
  *   node sdk/bin/nhos.mjs simulate <app.nha|app.nhs> <samples.csv> [--rows R --cols C]
  *                                  [--events out.events.csv] [--compare recorded.events.csv] [--budget]
+ *                                  [--press ms,ms,...]
  *   node sdk/bin/nhos.mjs build-index [--check]
  *   node sdk/bin/nhos.mjs check-versions [--base origin/main]
  *
@@ -24,6 +25,7 @@ import { fileURLToPath } from "node:url";
 import {
   CompileError,
   DEFAULT_CELL_COUNT,
+  OLED_COLS,
   OPS,
   PackageError,
   Simulator,
@@ -169,7 +171,7 @@ function cmdValidate(argv) {
 /** @param {string[]} argv */
 function cmdSimulate(argv) {
   const { options, positional } = parseArgs(argv, {
-    rows: "value", cols: "value", events: "value", compare: "value", budget: "flag",
+    rows: "value", cols: "value", events: "value", compare: "value", budget: "flag", press: "value",
   });
   const [packagePath, samplesPath] = positional;
   if (!packagePath || !samplesPath) throw new UsageError("simulate needs a package (.nha or .nhs) and a samples CSV");
@@ -185,8 +187,21 @@ function cmdSimulate(argv) {
     return 1;
   }
 
+  // A recording holds no button presses, so they are given by time: each is
+  // seen by the first frame at or after it, as a real press is.
+  const presses = typeof options.press === "string"
+    ? options.press.split(",").map((text) => Number(text.trim())).filter(Number.isFinite).sort((a, b) => a - b)
+    : [];
   const simulator = new Simulator(pkg, { appName: String(pkg.name ?? pkg.manifest?.id ?? "flow") });
-  simulator.run(frames);
+  if (presses.length && !simulator.hearsButton) console.error("note: the package does not declare button, so the presses are not delivered");
+  let nextPress = 0;
+  for (const frame of frames) {
+    while (nextPress < presses.length && presses[nextPress] <= frame.timestampMs) {
+      simulator.pressButton();
+      nextPress += 1;
+    }
+    simulator.step(frame);
+  }
 
   if (options.budget) {
     const cells = frames[0].values.length;
@@ -203,6 +218,23 @@ function cmdSimulate(argv) {
   for (const event of simulator.events) {
     const value = event.value === null ? "" : ` value=${event.value.toFixed(3)}`;
     console.log(`  #${String(event.seq).padEnd(4)} f${String(event.frameSeq).padEnd(8)} ${event.app}.${event.event} ${event.detail}${value}`);
+  }
+
+  if (simulator.canDisplay) {
+    // Bars as text: the brackets are the outline, the fill scaled to them.
+    console.log(`oled after the last frame (${OLED_COLS} columns):`);
+    for (const row of simulator.oledRows()) {
+      if (!row) {
+        console.log(`  |${" ".repeat(OLED_COLS)}|`);
+      } else if (row.kind === "text") {
+        console.log(`  |${row.text}|`);
+      } else if (row.bar) {
+        const head = row.label ? `${row.label} ` : "";
+        const inner = OLED_COLS - head.length - 2;
+        const filled = Math.round((row.bar.fillPx / Math.max(1, row.bar.width - 2)) * inner);
+        console.log(`  |${head}[${"#".repeat(filled)}${" ".repeat(inner - filled)}]|`);
+      }
+    }
   }
 
   if (typeof options.events === "string") {
@@ -420,6 +452,7 @@ const USAGE = `  node sdk/bin/nhos.mjs compile  [app.nhs ...] [--write] [--cells
   node sdk/bin/nhos.mjs validate [app.nha ...] [--cells N]
   node sdk/bin/nhos.mjs simulate <app.nha|app.nhs> <samples.csv> [--rows R --cols C]
                                  [--events out.events.csv] [--compare recorded.events.csv] [--budget]
+                                 [--press ms,ms,...]
   node sdk/bin/nhos.mjs build-index [--check]
   node sdk/bin/nhos.mjs check-versions [--base origin/main]`;
 

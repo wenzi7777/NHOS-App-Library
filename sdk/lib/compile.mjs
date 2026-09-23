@@ -20,7 +20,9 @@
  *     event  <name> when <expr> <cmp> <number> [hyst <number>] [for <n>ms]
  *     emit   <name> value <expr> on rise(<event>)
  *     led    <colour> when <event>
- *     gate (<expr> <cmp> <number> ...) { signal/event/emit/led ... }
+ *     show   <row> "<label>" <expr> [digits <n>]
+ *     bar    <row> "<label>" <expr> range <lo>..<hi>
+ *     gate (<expr> <cmp> <number> ...) { signal/event/emit/led/show/bar ... }
  */
 
 import {
@@ -30,7 +32,11 @@ import {
   MAX_DEBOUNCE_MS,
   MAX_EVENT_NAME,
   MAX_NODES,
+  MAX_OLED_DIGITS,
+  MAX_OLED_LABEL,
   MAX_REGION_INDEX,
+  OLED_LABEL_RE,
+  OLED_ROWS,
   graphCostUs,
   graphMemoryBytes,
   minOsFor,
@@ -74,7 +80,7 @@ const TOKEN_RE = new RegExp([
   String.raw`(?<number>\d+\.\d+|\d+)`,
   String.raw`(?<range>\.\.)`,
   String.raw`(?<name>[A-Za-z_][A-Za-z0-9_.\-]*)`,
-  String.raw`(?<op><=|>=|[{}(),=+\-*/<>])`,
+  String.raw`(?<op><=|>=|[{}(),=+\-*/%<>])`,
 ].join("|"), "y");
 
 const TOKEN_KINDS = ["space", "comment", "string", "semver", "number", "range", "name", "op"];
@@ -201,22 +207,21 @@ const BINARY_FUNCS = { min: "min", max: "max" };
 /** @type {Record<string, string>} */
 const NULLARY_FUNCS = { budget_load: "budget_load", grace_left: "grace_left" };
 /** @type {Record<string, string>} */
-const ARITH_OPS = { "+": "add", "-": "sub", "*": "mul", "/": "div" };
+const ARITH_OPS = { "+": "add", "-": "sub", "*": "mul", "/": "div", "%": "mod" };
 
 const HEADER_STRING_FIELDS = new Set(["name", "summary"]);
 const HEADER_WORD_FIELDS = new Set(["version", "author", "category", "icon"]);
 /** Functions whose arguments are bare names, not expressions. */
 const NAME_ARG_FUNCS = new Set(["sum", "feature"]);
 
-const SWEEP_OPS = new Set(["region_sum", "total", "peak", "features", "active_cells", "arg_max", "row_centroid", "col_centroid"]);
-
 /** Every name the language gives meaning to, for an editor's completion list. */
 export const LANGUAGE = Object.freeze({
-  statements: ["app", "region", "signal", "event", "emit", "led", "gate"],
-  keywords: ["rows", "cols", "when", "hyst", "for", "ms", "value", "on", "rise"],
+  statements: ["app", "region", "signal", "event", "emit", "led", "show", "bar", "gate"],
+  keywords: ["rows", "cols", "when", "hyst", "for", "ms", "value", "on", "rise", "digits", "range"],
   headerFields: [...HEADER_STRING_FIELDS, ...HEADER_WORD_FIELDS],
   functions: ["sum", "total", "peak", "active", "feature", "arg_max", "row_centroid", "col_centroid",
-    "mean", "max_hold", "integrate", "delta", "abs", "counter", "min", "max", "clamp", "budget_load", "grace_left"],
+    "mean", "max_hold", "integrate", "delta", "abs", "counter", "min", "max", "clamp", "budget_load", "grace_left",
+    "button"],
   featureFields: FEATURE_FIELDS,
   colours: Object.keys(LED_COLOURS),
 });
@@ -258,6 +263,7 @@ class Parser {
     this.capabilities = new Set();
     /** @type {Note[]} */
     this.notes = [];
+    this.notedDisplay = false;
   }
 
   // -- token helpers --
@@ -318,6 +324,8 @@ class Parser {
       else if (keyword === "event") this.parseEvent();
       else if (keyword === "emit") this.parseEmit();
       else if (keyword === "led") this.parseLed();
+      else if (keyword === "show") this.parseShow();
+      else if (keyword === "bar") this.parseBar();
       else if (keyword === "gate") this.parseGate();
       else throw this.fail(`unknown statement '${keyword}'`);
     }
@@ -442,6 +450,8 @@ class Parser {
       else if (keyword === "event") this.parseEvent();
       else if (keyword === "emit") this.parseEmit();
       else if (keyword === "led") this.parseLed();
+      else if (keyword === "show") this.parseShow();
+      else if (keyword === "bar") this.parseBar();
       else if (this.tok.kind === "eof") throw this.fail("unterminated gate block: expected '}'");
       else throw this.fail(`'${keyword}' is not allowed inside a gate`);
     }
@@ -499,6 +509,69 @@ class Parser {
     this.capabilities.add("drive_led");
   }
 
+  /** `<row> "<label>"`, the part `show` and `bar` share. */
+  parseOledTarget() {
+    const keyword = this.take();
+    const { value: row, token: rowToken } = this.expectInteger("an OLED row");
+    if (row >= OLED_ROWS) throw this.fail(`the OLED has rows 0 to ${OLED_ROWS - 1}`, rowToken);
+    const labelToken = this.expectKind("string");
+    /** @type {string} */
+    let label;
+    try {
+      label = JSON.parse(labelToken.text);
+    } catch {
+      throw this.fail(`invalid string ${labelToken.text}`, labelToken);
+    }
+    if (label.length > MAX_OLED_LABEL) {
+      throw this.fail(`an OLED label is at most ${MAX_OLED_LABEL} characters`, labelToken);
+    }
+    if (!OLED_LABEL_RE.test(label)) {
+      throw this.fail("an OLED label is printable ASCII only: the panel's font draws nothing else", labelToken);
+    }
+    if (!this.notedDisplay) {
+      this.notedDisplay = true;
+      this.notes.push({
+        message: "shown only while the device's OLED page is set to 'app'",
+        line: keyword.line,
+        col: keyword.col,
+      });
+    }
+    this.capabilities.add("display");
+    return { row, label };
+  }
+
+  parseShow() {
+    const { row, label } = this.parseOledTarget();
+    const value = this.parseExpr();
+    /** @type {Record<string, unknown>} */
+    const params = { row, label };
+    if (this.accept("digits")) {
+      const { value: digits, token } = this.expectInteger("a number of decimals");
+      if (digits > MAX_OLED_DIGITS) throw this.fail(`at most ${MAX_OLED_DIGITS} decimals`, token);
+      if (digits) params.digits = digits;
+    }
+    this.builder.emit("oled_text", [value], params);
+  }
+
+  parseBar() {
+    const { row, label } = this.parseOledTarget();
+    const value = this.parseExpr();
+    this.expect("range");
+    const lo = this.signedNumber();
+    this.expect("..");
+    const hiToken = this.tok;
+    const hi = this.signedNumber();
+    if (!(hi > lo)) throw this.fail("a bar's range must go from low to high", hiToken);
+    this.builder.emit("oled_bar", [value], { row, label, lo, hi });
+  }
+
+  /** A literal number, optionally negative. */
+  signedNumber() {
+    const negative = this.accept("-");
+    const value = Number(this.expectKind("number").text);
+    return negative ? -value : value;
+  }
+
   // -- expressions --
   /** @returns {number} */
   parseExpr() {
@@ -513,7 +586,7 @@ class Parser {
   /** @returns {number} */
   parseTerm() {
     let node = this.parseFactor();
-    while (this.tok.text === "*" || this.tok.text === "/") {
+    while (this.tok.text === "*" || this.tok.text === "/" || this.tok.text === "%") {
       const op = ARITH_OPS[this.take().text];
       node = this.builder.emit(op, [node, this.parseFactor()]);
     }
@@ -651,6 +724,12 @@ class Parser {
       });
     }
 
+    if (name === "button") {
+      arity(0);
+      this.capabilities.add("button");
+      return this.builder.emit("button");
+    }
+
     if (Object.hasOwn(NULLARY_FUNCS, name)) {
       arity(0);
       return this.builder.emit(NULLARY_FUNCS[name]);
@@ -684,7 +763,10 @@ class Parser {
 
   finish() {
     if (this.builder.nodes.length === 0) throw new CompileError("empty program: no signals or events");
-    if (this.builder.nodes.some((node) => SWEEP_OPS.has(node.op))) this.capabilities.add("read_matrix");
+    // Always, not only when the graph sweeps: the frame is the graph's clock.
+    // A graph without it is never woken, so one that only pages a counter
+    // with the button would silently never run.
+    this.capabilities.add("read_matrix");
 
     /** @type {Record<string, unknown>} */
     const manifest = { ...this.manifest };

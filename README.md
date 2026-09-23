@@ -83,6 +83,9 @@ so the commands and file paths differ on either side of that line.
 Everything else needs **v1.1.0**, which added arithmetic, time-series
 operators, the package registry and multiple app slots.
 
+`show`, `bar`, `button()` and `%` need **v1.4.0**, which added the OLED and
+the action button (see [the OLED and the button](docs/authoring.md#the-oled-and-the-button)).
+
 ## Integrity
 
 `index.json` records a sha256 for every package. The Desktop client verifies it

@@ -50,11 +50,15 @@ signal <name> = <expression>
 event  <name> when <expression> <cmp> <number> [hyst <number>] [for <n>ms]
 emit   <name> value <expression> on rise(<event>)
 led    <colour> when <event>
+show   <row> "<label>" <expression> [digits <n>]
+bar    <row> "<label>" <expression> range <lo>..<hi>
 
 gate (<expression> <cmp> <number> ...) {
-  signal / event / emit / led statements
+  signal / event / emit / led / show / bar statements
 }
 ```
+
+`show` and `bar` draw on the OLED; see [The OLED and the button](#the-oled-and-the-button).
 
 A `gate` block is skipped on frames where its condition is false; the nodes
 inside hold their last values. See [Self-degradation](#self-degradation).
@@ -63,8 +67,8 @@ Names may contain `-` and `.` (so an author name like `jane-doe` reads as one
 word), which means `l-r` is one unknown name, not a subtraction. Write
 `l - r`.
 
-Expressions support `+ - * /`, parentheses, unary minus, numbers, previously
-declared signals, and:
+Expressions support `+ - * / %`, parentheses, unary minus, numbers,
+previously declared signals, and:
 
 | Function | Meaning |
 |---|---|
@@ -77,6 +81,11 @@ declared signals, and:
 | `delta(x)`, `abs(x)`, `counter(x)` | |
 | `min(a, b)`, `max(a, b)`, `clamp(x, lo, hi)` | |
 | `budget_load()`, `grace_left()` | this app's current pressure |
+| `button()` | true for one frame per short press of the action button |
+
+`%` is C's `fmodf` (the result takes the sign of the left side) and, like
+`/`, gives 0 rather than NaN for a zero divisor. It exists for paging:
+`counter(button()) % 3` counts 0, 1, 2, 0, ...
 
 `feature(...)` is the efficient way to read several quantities: every call
 shares one `features` sweep, so eight reads cost one sweep plus eight cheap
@@ -87,7 +96,10 @@ which costs two extra nodes and pulls the graph up to v1.1.0. The compiler says
 so when it happens.
 
 `capabilities` and `min_os` are **derived** from the ops used (and, for
-`min_os`, from the graph's size: more than 12 nodes needs v1.3.0). Do not declare
+`min_os`, from the graph's size: more than 12 nodes needs v1.3.0; `show`, `bar`,
+`button()` and `%` need v1.4.0). `read_matrix` is always among them, even for a
+graph that never reads the matrix: the frame is what drives evaluation, and a
+graph that may not read it is never woken. Do not declare
 them — a hand-written `min_os` that is too low passes here and then fails on the
 device as `unknown_op`.
 
@@ -105,6 +117,10 @@ device as `unknown_op`.
 | Debounce time | 65535 ms | `FlowNode::ms` is a `uint16_t` |
 | Region index | 255 | `FlowNode::r0..c1` are `uint8_t` |
 | LED colour | red, green, blue, white, off | the firmware's palette |
+| OLED rows | 0 to 3 | a 128x32 panel at text size 1 (`kOledRows`) |
+| OLED label | 10 printable ASCII characters | `kMaxOledLabel`; the font draws nothing else |
+| Decimals | 0 to 3 | `kMaxOledDigits` |
+| Presses waiting | 3 | `FlowApp::kMaxPendingPresses` |
 
 The window pool is the one that catches people out: two `mean(x, 100)` are
 each within the window limit, but together need 200 floats from a pool of 128,
@@ -163,6 +179,77 @@ research data-collection device, and a signal that quietly changes fidelity
 because someone enabled another app would put a step change in the data that
 has nothing to do with the subject. Recorded, it is merely honest.
 
+## The OLED and the button
+
+An app can show up to four rows on an SSD1306 OLED (128x32, on I2C at 0x3C or
+0x3D) and hear short presses of the action button. The OLED is supported on
+v1.0.F and v1.5.F, where the panel is external -- anything wired to the board's
+exposed I2C bus is picked up once it is turned on.
+
+```
+app mat_view {
+  name    "Mat View"
+  version 1.0.0
+  author  wenzi7777
+  summary "Heel and toe load on the OLED; press the button for page 2."
+}
+
+region heel = rows 8..14, cols 0..14
+region toe  = rows 0..6, cols 0..14
+
+signal heel_load = sum(heel)
+signal toe_load  = sum(toe)
+
+# Each press advances the page; % 2 wraps it back to the first.
+signal page = counter(button()) % 2
+
+gate (page < 0.5) {
+  show 0 "Heel" heel_load
+  show 1 "Toe" toe_load
+  bar  2 "Heel %" heel_load / (heel_load + toe_load) range 0..1
+}
+
+gate (page > 0.5) {
+  show 0 "Peak" peak()
+  show 1 "Cells" active(50)
+  show 2 "CoP row" row_centroid() digits 1
+}
+```
+
+```
+|Heel             8676|        |Peak               85|
+|Toe              3378|  -->   |Cells             105|
+|Heel % [#########   ]|  press |CoP row          11.0|
+|                     |        |                     |
+```
+
+A row states *what* to show; the firmware does the drawing. So:
+
+- **Drawing costs the app nothing it can overrun.** `show` and `bar` are
+  scalar nodes that record a row. The panel is redrawn at the OLED's own
+  `update_hz` (at most 5 Hz), outside every app's budget.
+- **The screen is rebuilt every frame from the nodes that ran.** A row drawn
+  inside a closed `gate` is blank -- it does not freeze on its last value --
+  which is what makes gated pages work. Two nodes on one row are fine; the
+  later one wins.
+- **A text row** is the label at the left and the value right-aligned to column
+  21, rounded half away from zero from the float's true value. A value that
+  does not fit beside the label is shown as `#`.
+- **A bar** starts one character after its label and fills in proportion to
+  where the value sits in `range`, clamped at both ends.
+
+`button()` is true for exactly one frame per press and false for at least one
+frame between presses, so `counter(button())` counts every press even when two
+land in consecutive frames on a slow scan. Only short presses reach an app; a
+long press is the soft-off gesture and never does. Presses made while no frames
+are arriving are held, at most three, rather than replayed as a burst later.
+
+Nothing appears until the operator sets the device's **OLED page to `app`**
+(Settings, or `set-oled` in the Terminal). An installed app never takes the
+screen over by itself, the same way it never starts itself. With several apps
+running, each row comes from the lowest-numbered slot that drew it, so two apps
+can share the panel by using different rows.
+
 ## Testing without a device
 
 The Desktop app's SDK page replays a recording, or a live device's stream,
@@ -174,11 +261,14 @@ node sdk/bin/nhos.mjs simulate apps/heel_strike/app.nhs session.csv \
     --rows 15 --cols 15 --events simulated.events.csv --compare session.events.csv
 ```
 
-It prints an event timeline and, with `--events`, writes the **same
+It prints an event timeline, the OLED as the last frame left it, and, with
+`--events`, writes the **same
 `.events.csv` shape the Desktop writes beside a recording**. `--compare` lines
 the simulated events up against the ones the device actually recorded, by
 `frame_seq`, and exits non-zero if they differ. `--budget` prints the per-node
-cost breakdown. A recording does not store the matrix shape, so pass
+cost breakdown. A recording holds no button presses, so `--press 500,1800`
+presses the button at those times (ms), each seen by the first frame at or
+after it. A recording does not store the matrix shape, so pass
 `--rows`/`--cols` for any board that is not square.
 
 The simulator computes in 32-bit float, as the ESP32 does, so a threshold

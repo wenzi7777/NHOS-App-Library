@@ -28,6 +28,14 @@ export const CAPABILITIES: Readonly<Record<string, number>>;
 export const FEATURE_FIELDS: readonly string[];
 export const LED_COLOURS: Readonly<Record<string, readonly [number, number, number]>>;
 export const FLOAT_FIELDS: readonly string[];
+export const OLED_ROWS: number;
+export const OLED_COLS: number;
+export const OLED_ROW_PX: number;
+export const OLED_WIDTH_PX: number;
+export const MAX_OLED_LABEL: number;
+export const MAX_OLED_DIGITS: number;
+export const MAX_PENDING_PRESSES: number;
+export const OLED_LABEL_RE: RegExp;
 
 export interface OpSpec {
   readonly name: string;
@@ -257,6 +265,27 @@ export interface LedChange {
   node: number;
 }
 
+export interface OledBarGeometry {
+  /** left edge of the outline, in pixels */
+  x0: number;
+  /** outline width, reaching the right edge of the panel */
+  width: number;
+  /** filled pixels inside the outline, 0..width-2 */
+  fillPx: number;
+}
+
+/** One OLED row as the device's "app" page draws it. */
+export interface OledRow {
+  kind: "text" | "bar";
+  label: string;
+  value: number;
+  /** the node that drew it */
+  node: number;
+  /** the whole row, for a text row (OLED_COLS characters) */
+  text?: string;
+  bar?: OledBarGeometry;
+}
+
 export interface NodeValue {
   op: string;
   result: number;
@@ -270,6 +299,9 @@ export class Simulator {
   readonly appName: string;
   readonly canEmit: boolean;
   readonly canDriveLed: boolean;
+  readonly canDisplay: boolean;
+  /** true when the package declares `button`, so presses reach it */
+  readonly hearsButton: boolean;
   readonly events: SimEvent[];
   readonly ledChanges: LedChange[];
   /** the LED colour the graph is driving now */
@@ -288,9 +320,16 @@ export class Simulator {
   step(frame: Frame): SimEvent[];
   run(frames: Iterable<Frame>): this;
   nodeValues(): NodeValue[];
+  /** a short press of the action button, true for one frame, then false for one */
+  pressButton(): void;
+  /** the OLED rows the last frame drew, null where it drew nothing */
+  oledRows(): (OledRow | null)[];
 }
 
 export function computeFeatures(frame: Frame): Record<string, number>;
+export function formatOledValue(value: number, digits: number): string;
+export function formatOledTextLine(label: string, value: number, digits: number): string;
+export function oledBarGeometry(labelLen: number, value: number, lo: number, hi: number): OledBarGeometry;
 export function simulate(pkg: Record<string, any>, frames: Iterable<Frame>, options?: { appName?: string }): Simulator;
 
 // --- recordings ----------------------------------------------------------------

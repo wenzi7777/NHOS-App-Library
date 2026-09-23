@@ -12,7 +12,7 @@
     "name": {"type": "string", "maxLength": 23, "description": "Graph name, surfaced in app status."},
     "manifest": {"$ref": "#/$defs/manifest"},
     "nodes": {
-      "type": "array", "minItems": 1, "maxItems": 12,
+      "type": "array", "minItems": 1, "maxItems": 24,
       "items": {"$ref": "#/$defs/node"}
     }
   },
@@ -33,7 +33,7 @@
         "min_os": {"type": "string", "pattern": "^v?\\d+\\.\\d+\\.\\d+$"},
         "capabilities": {
           "type": "array",
-          "items": {"enum": ["read_matrix", "read_imu", "emit_event", "drive_led", "write_file"]}
+          "items": {"enum": ["read_matrix", "read_imu", "emit_event", "drive_led", "write_file", "button", "display"]}
         },
         "budget_us": {"type": "integer", "minimum": 0},
         "icon": {"type": "string", "maxLength": 15}
@@ -64,7 +64,10 @@
         "r1": {"type": "integer", "minimum": 0}, "c1": {"type": "integer", "minimum": 0},
         "event": {"type": "string", "maxLength": 23},
         "field": {"type": "string"},
-        "rgb": {"type": "string"}
+        "rgb": {"type": "string"},
+        "row": {"type": "integer", "minimum": 0, "maximum": 3, "description": "OLED row, for oled_text and oled_bar."},
+        "label": {"type": "string", "maxLength": 10, "pattern": "^[\\x20-\\x7e]*$", "description": "OLED label: printable ASCII, the panel's font draws nothing else."},
+        "digits": {"type": "integer", "minimum": 0, "maximum": 3, "description": "Decimals an oled_text value is shown with."}
       }
     }
   }

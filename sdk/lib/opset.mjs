@@ -73,7 +73,24 @@ export const CAPABILITIES = Object.freeze({
   emit_event: 1 << 2,
   drive_led: 1 << 3,
   write_file: 1 << 4,
+  // Short presses of the action button. Long presses never reach an app.
+  button: 1 << 6,
+  // Rows on the OLED, shown while the device's OLED page is "app".
+  display: 1 << 10,
 });
+
+// The OLED an app draws on: a 128x32 SSD1306 at text size 1, so four rows of
+// 21 characters. Mirrored in the firmware's AppDisplay.h.
+export const OLED_ROWS = 4; // kOledRows
+export const OLED_COLS = 21; // kOledCols
+export const OLED_ROW_PX = 8; // kOledRowPx
+export const OLED_WIDTH_PX = 128; // kOledWidthPx
+export const MAX_OLED_LABEL = 10; // kMaxOledLabel
+export const MAX_OLED_DIGITS = 3; // kMaxOledDigits
+// Presses held for frames not yet evaluated (FlowApp::kMaxPendingPresses).
+export const MAX_PENDING_PRESSES = 3;
+// The panel's font draws printable ASCII and nothing else.
+export const OLED_LABEL_RE = /^[\x20-\x7e]*$/;
 
 /** Feature fields exposed by the `features` op, in the order the firmware packs them. */
 export const FEATURE_FIELDS = Object.freeze([
@@ -139,6 +156,7 @@ function op(name, spec = {}) {
 }
 
 const V11 = "v1.1.0";
+const V14 = "v1.4.0";
 
 /** @type {Readonly<Record<string, OpSpec>>} */
 export const OPS = Object.freeze(Object.fromEntries([
@@ -189,6 +207,14 @@ export const OPS = Object.freeze(Object.fromEntries([
   op("gate", { inputs: 2, since: V11, summary: "When a is false, skips the following `span` nodes (they hold their values)." }),
   op("budget_load", { since: V11, summary: "This app's measured cost over its allocation." }),
   op("grace_left", { since: V11, summary: "Overruns left before this app is stopped." }),
+
+  // --- v1.4.0: interaction --------------------------------------------------
+  // All scalar: an OLED node only records what to show. The panel is redrawn
+  // at the OLED's own update_hz, outside every app's budget.
+  op("mod", { inputs: 2, since: V14, summary: "a mod b (C fmodf: the sign of a), or 0 when b is 0." }),
+  op("button", { boolean: true, since: V14, summary: "True for one frame per short press of the action button, false for at least one frame between presses." }),
+  op("oled_text", { inputs: 1, required: ["row", "label"], optional: ["digits"], since: V14, summary: "Shows `label` and the input's value on OLED row `row`." }),
+  op("oled_bar", { inputs: 1, required: ["row", "label", "lo", "hi"], since: V14, summary: "Shows `label` and the input as a bar over [lo, hi] on OLED row `row`." }),
 ].map((spec) => [spec.name, spec])));
 
 export const V1_0_OPS = Object.freeze(
@@ -264,8 +290,12 @@ export function appShareUs(fps, runningApps) {
  * @param {ReadonlyArray<{op?: unknown}>} nodes
  */
 export function minOsFor(nodes) {
-  if (nodes.length > LEGACY_MAX_NODES) return MIN_OS_FOR_LARGE_GRAPHS;
-  return nodes.some((node) => opSpec(node.op).since !== "v1.0.0") ? "v1.1.0" : "v1.0.0";
+  let needed = nodes.length > LEGACY_MAX_NODES ? MIN_OS_FOR_LARGE_GRAPHS : "v1.0.0";
+  for (const node of nodes) {
+    const since = opSpec(node.op).since;
+    if (compareVersions(since, needed) > 0) needed = since;
+  }
+  return needed;
 }
 
 /** @param {readonly string[]} names */

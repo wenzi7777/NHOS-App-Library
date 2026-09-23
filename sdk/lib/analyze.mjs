@@ -159,6 +159,11 @@ const CODE_MESSAGES = {
   readout_source_not_allowed: "a readout may only poll read-only commands",
   unknown_source: "the section refers to a source that is not declared",
   missing_manifest_field: "a required app field is missing",
+  invalid_oled_row: "the OLED has rows 0 to 3",
+  invalid_oled_label: "an OLED label is at most 10 printable ASCII characters",
+  invalid_oled_digits: "an OLED value shows 0 to 3 decimals",
+  invalid_bar_range: "a bar's range must go from low to high",
+  never_evaluated: "without read_matrix the device never wakes the graph for a frame, so it never runs",
 };
 
 /** @param {string} code */
