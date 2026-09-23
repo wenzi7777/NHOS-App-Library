@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "product": "NHOS App Library",
-  "generated_at": "2026-09-22T16:58:44Z",
+  "generated_at": "2026-09-23T08:46:26Z",
   "cell_count": 225,
   "apps": [
     {
@@ -88,7 +88,7 @@
         "ja": "フレームごとの総荷重・ピーク・接触面積・圧力中心を算出します。",
         "zh-CN": "逐帧计算总力、峰值、接触面积与压力中心。"
       },
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "wenzi7777",
       "license": "MPL-2.0",
       "category": "sensing",
@@ -98,14 +98,14 @@
       ],
       "kind": "flow",
       "min_os": "v1.1.0",
-      "nodes": 11,
-      "estimated_us": 119,
+      "nodes": 12,
+      "estimated_us": 120,
       "memory_bytes": 0,
       "device_path": "apps/features.nha",
       "package": {
-        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/features/features-1.0.0.nha",
-        "sha256": "4a41350073a36e106d469cfb0ab3e637edc4f3ca1a067ad062cba4c8d0a7d697",
-        "size": 799
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/features/features-1.1.0.nha",
+        "sha256": "0876d8e94070471c6d44f386d15ae53a6e021f3a1c11b336e1b6cc0586f4ef8b",
+        "size": 833
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/features/icon.svg",
       "readme_url": {

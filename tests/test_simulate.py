@@ -212,5 +212,31 @@ class SidecarTests(unittest.TestCase):
         self.assertEqual((frames[0].rows, frames[0].cols), (2, 2))
 
 
+class FeaturesAppTests(unittest.TestCase):
+    """The shipped features app, not a fixture.
+
+    Seen on hardware: one cell resting near the active threshold made 1.0.0
+    emit a contact fall and a rise 17 ms apart (one frame at 57 fps), over and
+    over, on a mat nobody was touching.
+    """
+
+    def run_app(self, loaded):
+        package = json.loads((ROOT / "apps" / "features" / "app.nha").read_text())
+        # 57 fps, one cell either at rest or just over the active threshold.
+        on = PRESSURE_ACTIVE_THRESHOLD + 5
+        frames = flat_frames([[on if flag else 0.0, 0.0] for flag in loaded], ms_step=17)
+        simulator = Simulator(package, app_name="features")
+        simulator.run(frames)
+        return [event.detail for event in simulator.events]
+
+    def test_a_one_frame_dropout_is_not_an_event(self):
+        loaded = [True] * 10 + [False] + [True] * 10
+        self.assertEqual(self.run_app(loaded), ["rise"])
+
+    def test_a_real_release_still_is(self):
+        loaded = [True] * 10 + [False] * 10
+        self.assertEqual(self.run_app(loaded), ["rise", "fall"])
+
+
 if __name__ == "__main__":
     unittest.main()

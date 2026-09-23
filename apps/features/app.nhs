@@ -6,7 +6,7 @@
 # back out of that same sweep rather than sweeping again.
 app features {
   name    "Feature Extractor"
-  version 1.0.0
+  version 1.1.0
   author  wenzi7777
   summary "Total force, peak, contact area and centre of pressure."
   category sensing
@@ -22,4 +22,8 @@ signal centroid_row = feature(centroid_row)
 signal centroid_col = feature(centroid_col)
 signal in_contact   = feature(in_contact)
 
-event contact when in_contact > 0.5
+# in_contact turns on when any single cell reaches the active threshold, so one
+# cell hovering at that level at rest flips it every frame. 1.0.0 emitted every
+# one of those flips -- a fall and a rise 17 ms apart, over and over, on an
+# unloaded mat. Require the change to hold for 40 ms, as the Contact app does.
+event contact when in_contact > 0.5 for 40ms
