@@ -22,7 +22,9 @@
  *     led    <colour> when <event>
  *     show   <row> "<label>" <expr> [digits <n>]
  *     bar    <row> "<label>" <expr> range <lo>..<hi>
- *     gate (<expr> <cmp> <number> ...) { signal/event/emit/led/show/bar ... }
+ *     pixel  <index> <colour> when <event>
+ *     meter  <expr> range <lo>..<hi>
+ *     gate (<expr> <cmp> <number> ...) { signal/event/emit/led/show/bar/pixel/meter ... }
  */
 
 import {
@@ -31,6 +33,7 @@ import {
   LED_COLOURS,
   MAX_DEBOUNCE_MS,
   MAX_EVENT_NAME,
+  MAX_EXT_LEDS,
   MAX_NODES,
   MAX_OLED_DIGITS,
   MAX_OLED_LABEL,
@@ -216,7 +219,7 @@ const NAME_ARG_FUNCS = new Set(["sum", "feature"]);
 
 /** Every name the language gives meaning to, for an editor's completion list. */
 export const LANGUAGE = Object.freeze({
-  statements: ["app", "region", "signal", "event", "emit", "led", "show", "bar", "gate"],
+  statements: ["app", "region", "signal", "event", "emit", "led", "show", "bar", "pixel", "meter", "gate"],
   keywords: ["rows", "cols", "when", "hyst", "for", "ms", "value", "on", "rise", "digits", "range"],
   headerFields: [...HEADER_STRING_FIELDS, ...HEADER_WORD_FIELDS],
   functions: ["sum", "total", "peak", "active", "feature", "arg_max", "row_centroid", "col_centroid",
@@ -264,6 +267,7 @@ class Parser {
     /** @type {Note[]} */
     this.notes = [];
     this.notedDisplay = false;
+    this.notedExtLed = false;
   }
 
   // -- token helpers --
@@ -326,6 +330,8 @@ class Parser {
       else if (keyword === "led") this.parseLed();
       else if (keyword === "show") this.parseShow();
       else if (keyword === "bar") this.parseBar();
+      else if (keyword === "pixel") this.parsePixel();
+      else if (keyword === "meter") this.parseMeter();
       else if (keyword === "gate") this.parseGate();
       else throw this.fail(`unknown statement '${keyword}'`);
     }
@@ -452,6 +458,8 @@ class Parser {
       else if (keyword === "led") this.parseLed();
       else if (keyword === "show") this.parseShow();
       else if (keyword === "bar") this.parseBar();
+      else if (keyword === "pixel") this.parsePixel();
+      else if (keyword === "meter") this.parseMeter();
       else if (this.tok.kind === "eof") throw this.fail("unterminated gate block: expected '}'");
       else throw this.fail(`'${keyword}' is not allowed inside a gate`);
     }
@@ -563,6 +571,52 @@ class Parser {
     const hi = this.signedNumber();
     if (!(hi > lo)) throw this.fail("a bar's range must go from low to high", hiToken);
     this.builder.emit("oled_bar", [value], { row, label, lo, hi });
+  }
+
+  /** Whichever external LED statement comes first says who gets the strip. */
+  noteExtLed() {
+    if (!this.notedExtLed) {
+      this.notedExtLed = true;
+      const keyword = this.tokens[this.pos - 1];
+      this.notes.push({
+        message: "while this app runs it takes the external LED strip over from the device's preset",
+        line: keyword.line,
+        col: keyword.col,
+      });
+    }
+    this.capabilities.add("drive_ext_led");
+  }
+
+  parsePixel() {
+    this.expect("pixel");
+    this.noteExtLed();
+    const { value: index, token: indexToken } = this.expectInteger("a pixel index");
+    if (index >= MAX_EXT_LEDS) {
+      throw this.fail(`the strip has pixels 0 to ${MAX_EXT_LEDS - 1} (v1.0.F shows 0 to 2)`, indexToken);
+    }
+    const colourToken = this.take();
+    const colour = colourToken.text.replace(/^"+|"+$/g, "");
+    if (!Object.hasOwn(LED_COLOURS, colour)) {
+      throw this.fail(`unknown colour '${colour}' (the device has ${Object.keys(LED_COLOURS).join(", ")})`, colourToken);
+    }
+    this.expect("when");
+    const eventToken = this.expectKind("name");
+    const trigger = this.events.get(eventToken.text);
+    if (trigger === undefined) throw this.fail(`unknown event '${eventToken.text}'`, eventToken);
+    this.builder.emit("ext_pixel", [trigger], { index, rgb: colour });
+  }
+
+  parseMeter() {
+    this.expect("meter");
+    this.noteExtLed();
+    const value = this.parseExpr();
+    this.expect("range");
+    const lo = this.signedNumber();
+    this.expect("..");
+    const hiToken = this.tok;
+    const hi = this.signedNumber();
+    if (!(hi > lo)) throw this.fail("a meter's range must go from low to high", hiToken);
+    this.builder.emit("ext_meter", [value], { lo, hi });
   }
 
   /** A literal number, optionally negative. */

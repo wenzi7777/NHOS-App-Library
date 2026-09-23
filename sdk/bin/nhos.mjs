@@ -25,6 +25,7 @@ import { fileURLToPath } from "node:url";
 import {
   CompileError,
   DEFAULT_CELL_COUNT,
+  MAX_EXT_LEDS,
   OLED_COLS,
   OPS,
   PackageError,
@@ -235,6 +236,18 @@ function cmdSimulate(argv) {
         console.log(`  |${head}[${"#".repeat(filled)}${" ".repeat(inner - filled)}]|`);
       }
     }
+  }
+
+  if (simulator.canDriveExtLed) {
+    // One letter per pixel, for the largest strip: v1.0.F shows the first 3.
+    const letter = (/** @type {number[]} */ [r, g, b]) => {
+      if (!r && !g && !b) return ".";
+      if (r && g && b) return "W";
+      if (b) return "B";
+      return r > g ? "R" : g > r ? "G" : "Y";
+    };
+    const strip = /** @type {number[][]} */ (simulator.extLeds(MAX_EXT_LEDS));
+    console.log(`external leds after the last frame: [${strip.map(letter).join("")}]`);
   }
 
   if (typeof options.events === "string") {

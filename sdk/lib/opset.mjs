@@ -77,7 +77,14 @@ export const CAPABILITIES = Object.freeze({
   button: 1 << 6,
   // Rows on the OLED, shown while the device's OLED page is "app".
   display: 1 << 10,
+  // The external LED strip. A running app that may drive it takes it over
+  // from the configured preset, and hands it back when it stops.
+  drive_ext_led: 1 << 11,
 });
+
+// The most external pixels any board has (v1.5.F; v1.0.F has 3). A pixel past
+// a board's own count is accepted and never shown. Mirrored in AppExtLed.h.
+export const MAX_EXT_LEDS = 9; // kMaxAppExtLeds
 
 // The OLED an app draws on: a 128x32 SSD1306 at text size 1, so four rows of
 // 21 characters. Mirrored in the firmware's AppDisplay.h.
@@ -157,6 +164,7 @@ function op(name, spec = {}) {
 
 const V11 = "v1.1.0";
 const V14 = "v1.4.0";
+const V15 = "v1.5.0";
 
 /** @type {Readonly<Record<string, OpSpec>>} */
 export const OPS = Object.freeze(Object.fromEntries([
@@ -215,6 +223,12 @@ export const OPS = Object.freeze(Object.fromEntries([
   op("button", { boolean: true, since: V14, summary: "True for one frame per short press of the action button, false for at least one frame between presses." }),
   op("oled_text", { inputs: 1, required: ["row", "label"], optional: ["digits"], since: V14, summary: "Shows `label` and the input's value on OLED row `row`." }),
   op("oled_bar", { inputs: 1, required: ["row", "label", "lo", "hi"], since: V14, summary: "Shows `label` and the input as a bar over [lo, hi] on OLED row `row`." }),
+
+  // --- v1.5.0: the external LED strip ---------------------------------------
+  // Scalar, like the OLED ops: they record what to show, and the strip is
+  // drawn by the LED service outside every app's budget.
+  op("ext_pixel", { inputs: 1, required: ["index", "rgb"], since: V15, summary: "Lights external pixel `index` in `rgb` on frames a boolean is true." }),
+  op("ext_meter", { inputs: 1, required: ["lo", "hi"], since: V15, summary: "Shows the input as a meter along the external strip over [lo, hi], green to red." }),
 ].map((spec) => [spec.name, spec])));
 
 export const V1_0_OPS = Object.freeze(

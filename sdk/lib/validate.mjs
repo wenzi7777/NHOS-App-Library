@@ -19,6 +19,7 @@ import {
   LED_COLOURS,
   MAX_DEBOUNCE_MS,
   MAX_EVENT_NAME,
+  MAX_EXT_LEDS,
   MAX_NODES,
   MAX_OLED_DIGITS,
   MAX_OLED_LABEL,
@@ -193,6 +194,18 @@ export function validateGraph(nodes, manifest, options = {}) {
     if (name === "oled_bar") {
       require(typeof node.lo === "number" && typeof node.hi === "number" && node.hi > node.lo,
         `invalid_bar_range:${text(node.lo)}..${text(node.hi)}`, index);
+    }
+    if (name === "ext_pixel" || name === "ext_meter") {
+      require(caps.has("drive_ext_led"), "capability_not_declared:drive_ext_led", index);
+    }
+    if (name === "ext_pixel") {
+      require(isInt(node.index) && /** @type {number} */ (node.index) >= 0 && /** @type {number} */ (node.index) < MAX_EXT_LEDS,
+        `invalid_ext_led_index:${text(node.index)}`, index);
+      require(Object.hasOwn(LED_COLOURS, text(node.rgb)), `unknown_colour:${text(node.rgb)}`, index);
+    }
+    if (name === "ext_meter") {
+      require(typeof node.lo === "number" && typeof node.hi === "number" && node.hi > node.lo,
+        `invalid_meter_range:${text(node.lo)}..${text(node.hi)}`, index);
     }
     if (name === "button") require(caps.has("button"), "capability_not_declared:button", index);
     if (name === "feature_get") {

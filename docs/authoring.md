@@ -52,13 +52,16 @@ emit   <name> value <expression> on rise(<event>)
 led    <colour> when <event>
 show   <row> "<label>" <expression> [digits <n>]
 bar    <row> "<label>" <expression> range <lo>..<hi>
+pixel  <index> <colour> when <event>
+meter  <expression> range <lo>..<hi>
 
 gate (<expression> <cmp> <number> ...) {
-  signal / event / emit / led / show / bar statements
+  signal / event / emit / led / show / bar / pixel / meter statements
 }
 ```
 
 `show` and `bar` draw on the OLED; see [The OLED and the button](#the-oled-and-the-button).
+`pixel` and `meter` drive the external LED strip; see [The external LED strip](#the-external-led-strip).
 
 A `gate` block is skipped on frames where its condition is false; the nodes
 inside hold their last values. See [Self-degradation](#self-degradation).
@@ -121,6 +124,7 @@ device as `unknown_op`.
 | OLED label | 10 printable ASCII characters | `kMaxOledLabel`; the font draws nothing else |
 | Decimals | 0 to 3 | `kMaxOledDigits` |
 | Presses waiting | 3 | `FlowApp::kMaxPendingPresses` |
+| External pixel | 0 to 8 | `kMaxAppExtLeds`; v1.5.F has 9 pixels, v1.0.F 3 |
 
 The window pool is the one that catches people out: two `mean(x, 100)` are
 each within the window limit, but together need 200 floats from a pool of 128,
@@ -249,6 +253,56 @@ Nothing appears until the operator sets the device's **OLED page to `app`**
 screen over by itself, the same way it never starts itself. With several apps
 running, each row comes from the lowest-numbered slot that drew it, so two apps
 can share the panel by using different rows.
+
+## The external LED strip
+
+v1.0.F has three external LEDs and v1.5.F nine, on a WS2812 strip wired to the
+board's LED header. An app can light single pixels and show a value as a meter
+along the strip.
+
+```
+app load_strip {
+  name    "Load Strip"
+  version 1.0.0
+  author  wenzi7777
+  summary "Total load as a meter; the first pixel turns blue on contact."
+}
+
+event touch    when total() > 50
+event overload when peak() > 1800
+
+meter total() range 0..20000
+pixel 0 blue when touch
+pixel 8 red  when overload
+```
+
+- **`pixel <index> <colour> when <event>`** lights pixel `index` (counted from
+  0) on frames the event is true, and leaves it dark on the others. The colours
+  are the LED's: red, green, blue, white and off. `off` is a colour like the
+  others, so a pixel can cut a dark gap into a meter.
+- **`meter <expression> range <lo>..<hi>`** lights as much of the strip as the
+  value covers of the range, rounded up, from green at the first pixel to red
+  at the last: none at or below `lo`, all at or above `hi`.
+
+Pixels draw over the meter. As on the OLED, both only record what to show and
+cost a scalar node each; the strip is drawn by the LED service outside every
+app's budget, and it is rebuilt every frame from the nodes that ran, so a
+pixel inside a closed `gate` goes dark rather than freezing. Two nodes on one
+pixel are fine; the later one wins.
+
+A pixel past a board's own count is accepted and never shown, so one package
+runs on both boards: on v1.0.F only pixels 0 to 2 and a three-pixel meter
+appear. The GCU LTS boards have no strip, and the app runs there with nothing
+to show.
+
+**While the app runs it has the strip.** Unlike the OLED, which waits for the
+operator to choose its `app` page, the strip is taken over from whatever
+preset the device is set to, and handed back to that preset when the app is
+stopped. A frame on which the app lit nothing shows a dark strip, not the
+preset. The operator's settings still apply: with the external LED turned off
+the strip stays off, and the brightness setting scales every colour. With
+several apps running, the meter comes from the lowest-numbered slot that has
+one and each pixel from the lowest-numbered slot that lit it.
 
 ## Testing without a device
 

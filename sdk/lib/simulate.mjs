@@ -29,16 +29,23 @@
  * - The OLED rows are rebuilt every frame from the nodes that ran, so a row
  *   drawn inside a closed gate is blank, and a package without `display`
  *   draws nothing. `oledRows()` returns them rendered, via oled.mjs.
+ * - The external strip is rebuilt the same way: a pixel is lit on frames its
+ *   node runs with a true input, the meter shows its node's last value, and a
+ *   package without `drive_ext_led` holds nothing. `extLedFrame()` returns
+ *   the state and `extLeds(count)` the strip as a board of `count` pixels
+ *   shows it, via extled.mjs.
  */
 
 import {
   FEATURE_FIELDS,
   LED_COLOURS,
+  MAX_EXT_LEDS,
   MAX_PENDING_PRESSES,
   OLED_ROWS,
   PRESSURE_ACTIVE_THRESHOLD,
   PRESSURE_FULL_SCALE,
 } from "./opset.mjs";
+import { renderExtLeds } from "./extled.mjs";
 import { formatOledTextLine, oledBarGeometry } from "./oled.mjs";
 
 const f32 = Math.fround;
@@ -175,11 +182,16 @@ export class Simulator {
     this.canDriveLed = caps.has("drive_led");
     this.canDisplay = caps.has("display");
     this.hearsButton = caps.has("button");
+    this.canDriveExtLed = caps.has("drive_ext_led");
     this.pendingPresses = 0;
     this.pressShown = false;
     /** Which node drew each OLED row on the last frame, or -1. */
     /** @type {number[]} */
     this.displayNode = new Array(OLED_ROWS).fill(-1);
+    /** Which node lit each external pixel on the last frame, or -1. */
+    /** @type {number[]} */
+    this.extPixelNode = new Array(MAX_EXT_LEDS).fill(-1);
+    this.extMeterNode = -1;
     this.appName = options.appName ?? String(manifest.id ?? pkg.name ?? "flow");
     this.budgetLoad = 0;
     this.graceLeft = 0;
@@ -215,6 +227,8 @@ export class Simulator {
     this.pendingPresses = 0;
     this.pressShown = false;
     this.displayNode = new Array(OLED_ROWS).fill(-1);
+    this.extPixelNode = new Array(MAX_EXT_LEDS).fill(-1);
+    this.extMeterNode = -1;
   }
 
   /** A short press of the action button, seen by the next free frame. */
@@ -284,6 +298,8 @@ export class Simulator {
       this.pressShown = true;
     }
     this.displayNode.fill(-1);
+    this.extPixelNode.fill(-1);
+    this.extMeterNode = -1;
 
     for (let i = 0; i < count; i += 1) {
       const node = this.nodes[i];
@@ -494,6 +510,19 @@ export class Simulator {
           state.result = a().result;
           if (Number(node.row) >= 0 && Number(node.row) < OLED_ROWS) this.displayNode[Number(node.row)] = i;
           break;
+        case "ext_pixel": {
+          // Lit only on frames it runs with a true input, so a pixel inside a
+          // closed gate goes dark; the later of two nodes on a pixel wins.
+          state.boolResult = a().boolResult;
+          state.result = state.boolResult ? 1 : 0;
+          const pixel = Number(node.index);
+          if (state.boolResult && pixel >= 0 && pixel < MAX_EXT_LEDS) this.extPixelNode[pixel] = i;
+          break;
+        }
+        case "ext_meter":
+          state.result = a().result;
+          this.extMeterNode = i;
+          break;
         case "budget_load": state.result = this.budgetLoad; break;
         case "grace_left": state.result = this.graceLeft; break;
         default:
@@ -529,6 +558,32 @@ export class Simulator {
       const text = formatOledTextLine(label, value, Number(node.digits ?? 0));
       return { kind: "text", label, value, node: index, text };
     });
+  }
+
+  /**
+   * What the last frame put on the external strip, or null for a package
+   * that may not drive it (the device leaves its preset showing then).
+   * @returns {import("./extled.mjs").ExtLedFrame | null}
+   */
+  extLedFrame() {
+    if (!this.canDriveExtLed) return null;
+    const meterNode = this.extMeterNode >= 0 ? this.nodes[this.extMeterNode] : null;
+    return {
+      meter: meterNode
+        ? { value: this.states[this.extMeterNode].result, lo: Number(meterNode.lo ?? 0), hi: Number(meterNode.hi ?? 0) }
+        : null,
+      pixels: this.extPixelNode.map((index) => (index >= 0 ? LED_COLOURS[String(this.nodes[index].rgb)] ?? LED_COLOURS.off : null)),
+    };
+  }
+
+  /**
+   * The strip as a board with `count` external pixels shows it after the last
+   * frame, before brightness; null when the package does not drive it.
+   * @param {number} count
+   */
+  extLeds(count) {
+    const frame = this.extLedFrame();
+    return frame ? renderExtLeds(frame, count) : null;
   }
 
   /**

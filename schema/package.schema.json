@@ -33,7 +33,7 @@
         "min_os": {"type": "string", "pattern": "^v?\\d+\\.\\d+\\.\\d+$"},
         "capabilities": {
           "type": "array",
-          "items": {"enum": ["read_matrix", "read_imu", "emit_event", "drive_led", "write_file", "button", "display"]}
+          "items": {"enum": ["read_matrix", "read_imu", "emit_event", "drive_led", "write_file", "button", "display", "drive_ext_led"]}
         },
         "budget_us": {"type": "integer", "minimum": 0},
         "icon": {"type": "string", "maxLength": 15}
@@ -67,7 +67,8 @@
         "rgb": {"type": "string"},
         "row": {"type": "integer", "minimum": 0, "maximum": 3, "description": "OLED row, for oled_text and oled_bar."},
         "label": {"type": "string", "maxLength": 10, "pattern": "^[\\x20-\\x7e]*$", "description": "OLED label: printable ASCII, the panel's font draws nothing else."},
-        "digits": {"type": "integer", "minimum": 0, "maximum": 3, "description": "Decimals an oled_text value is shown with."}
+        "digits": {"type": "integer", "minimum": 0, "maximum": 3, "description": "Decimals an oled_text value is shown with."},
+        "index": {"type": "integer", "minimum": 0, "maximum": 8, "description": "External LED pixel, for ext_pixel. Pixels past a board's own count are never shown."}
       }
     }
   }

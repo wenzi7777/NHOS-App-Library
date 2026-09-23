@@ -85,6 +85,8 @@ operators, the package registry and multiple app slots.
 
 `show`, `bar`, `button()` and `%` need **v1.4.0**, which added the OLED and
 the action button (see [the OLED and the button](docs/authoring.md#the-oled-and-the-button)).
+`pixel` and `meter` need **v1.5.0**, which added the external LED strip (see
+[the external LED strip](docs/authoring.md#the-external-led-strip)).
 
 ## Integrity
 

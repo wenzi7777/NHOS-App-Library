@@ -12,5 +12,6 @@ export { CompileError, LANGUAGE, compileSource, tokenize } from "./compile.mjs";
 export { PackageError, validateGraph, validateManifest, validatePackage, validateReadout } from "./validate.mjs";
 export { Simulator, computeFeatures, simulate } from "./simulate.mjs";
 export { formatOledTextLine, formatOledValue, oledBarGeometry } from "./oled.mjs";
+export { extMeterColour, extMeterLit, renderExtLeds } from "./extled.mjs";
 export { EVENT_COLUMNS, compareEvents, formatEventsCsv, inferShape, parseCsvRows, parseEventsCsv, parseSamplesCsv } from "./csv.mjs";
 export { analyzeFlow, analyzeReadout, describeCode } from "./analyze.mjs";

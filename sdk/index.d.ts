@@ -36,6 +36,8 @@ export const MAX_OLED_LABEL: number;
 export const MAX_OLED_DIGITS: number;
 export const MAX_PENDING_PRESSES: number;
 export const OLED_LABEL_RE: RegExp;
+/** the most external LED pixels any board has; a pixel past a board's own count is never shown */
+export const MAX_EXT_LEDS: number;
 
 export interface OpSpec {
   readonly name: string;
@@ -302,6 +304,8 @@ export class Simulator {
   readonly canDisplay: boolean;
   /** true when the package declares `button`, so presses reach it */
   readonly hearsButton: boolean;
+  /** true when the package declares `drive_ext_led`, so it takes the external strip over while it runs */
+  readonly canDriveExtLed: boolean;
   readonly events: SimEvent[];
   readonly ledChanges: LedChange[];
   /** the LED colour the graph is driving now */
@@ -324,7 +328,21 @@ export class Simulator {
   pressButton(): void;
   /** the OLED rows the last frame drew, null where it drew nothing */
   oledRows(): (OledRow | null)[];
+  /** what the last frame put on the external strip, null without `drive_ext_led` */
+  extLedFrame(): ExtLedFrame | null;
+  /** the strip as a board of `count` external pixels shows it (before brightness), null without `drive_ext_led` */
+  extLeds(count: number): [number, number, number][] | null;
 }
+
+export interface ExtLedFrame {
+  meter: { value: number; lo: number; hi: number } | null;
+  /** one entry per possible pixel (MAX_EXT_LEDS), null where nothing lit it */
+  pixels: (readonly [number, number, number] | null)[];
+}
+
+export function extMeterLit(value: number, lo: number, hi: number, count: number): number;
+export function extMeterColour(index: number, count: number): [number, number, number];
+export function renderExtLeds(frame: ExtLedFrame, count: number): [number, number, number][];
 
 export function computeFeatures(frame: Frame): Record<string, number>;
 export function formatOledValue(value: number, digits: number): string;

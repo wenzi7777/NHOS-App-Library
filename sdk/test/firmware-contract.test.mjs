@@ -23,6 +23,7 @@ import {
   GOVERNOR_CEILING_PERMILLE,
   LED_COLOURS,
   MAX_APP_ID,
+  MAX_EXT_LEDS,
   MAX_NODES,
   MAX_OLED_DIGITS,
   MAX_OLED_LABEL,
@@ -39,6 +40,8 @@ import {
   PRESSURE_FULL_SCALE,
   SCALAR_OP_NS,
   WINDOW_POOL,
+  extMeterColour,
+  extMeterLit,
   formatOledTextLine,
   formatOledValue,
   oledBarGeometry,
@@ -73,6 +76,24 @@ function body(text, signature) {
   const rest = text.slice(start);
   return rest.slice(0, rest.indexOf("\n}"));
 }
+
+// A C++ toolchain that can link a program, for the tests that run the
+// firmware's own code. CXXFLAGS is passed through, e.g. an -isysroot for a
+// working SDK.
+const cxxflags = (process.env.CXXFLAGS ?? "").split(/\s+/).filter(Boolean);
+const compiler = present ? ["c++", "clang++", "g++"].find((name) => {
+  const dir = mkdtempSync(join(tmpdir(), "nhos-cxx-"));
+  try {
+    writeFileSync(join(dir, "probe.cpp"), "int main() { return 0; }\n");
+    execFileSync(name, [...cxxflags, join(dir, "probe.cpp"), "-o", join(dir, "probe")], { stdio: "ignore" });
+    execFileSync(join(dir, "probe"), { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}) : undefined;
 
 describe("cost model contract", { skip }, () => {
   const flowH = present ? source("FlowApp.h") : "";
@@ -162,21 +183,7 @@ describe("OLED contract", { skip }, () => {
   // The strongest form of the contract: the firmware's own formatting code,
   // compiled for this machine, against oled.mjs, value for value. Skipped
   // without a C++ toolchain that can link a program; everything above still
-  // runs. CXXFLAGS is passed through, e.g. an -isysroot for a working SDK.
-  const cxxflags = (process.env.CXXFLAGS ?? "").split(/\s+/).filter(Boolean);
-  const compiler = present ? ["c++", "clang++", "g++"].find((name) => {
-    const dir = mkdtempSync(join(tmpdir(), "nhos-cxx-"));
-    try {
-      writeFileSync(join(dir, "probe.cpp"), "int main() { return 0; }\n");
-      execFileSync(name, [...cxxflags, join(dir, "probe.cpp"), "-o", join(dir, "probe")], { stdio: "ignore" });
-      execFileSync(join(dir, "probe"), { stdio: "ignore" });
-      return true;
-    } catch {
-      return false;
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  }) : undefined;
+  // runs.
   test("the firmware draws every row the way oled.mjs says", { skip: compiler ? false : "no C++ toolchain that links" }, () => {
     const dir = mkdtempSync(join(tmpdir(), "nhos-oled-"));
     try {
@@ -241,6 +248,77 @@ int main() {
           lines.push(`b ${len} ${bits(value)} ${bits(lo)} ${bits(hi)}`);
           const g = oledBarGeometry(len, value, lo, hi);
           expected.push(`${g.x0} ${g.width} ${g.fillPx}`);
+        }
+      }
+      const actual = execFileSync(binary, { input: `${lines.join("\n")}\n` }).toString().trimEnd().split("\n");
+      assert.equal(actual.length, expected.length);
+      const mismatches = actual
+        .map((line, i) => (line === expected[i] ? null : `${lines[i]}: firmware ${line}, library ${expected[i]}`))
+        .filter(Boolean);
+      assert.deepEqual(mismatches, []);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("external LED contract", { skip }, () => {
+  test("the strip's pixel limit matches", () => {
+    assert.equal(constant(source("AppExtLed.h"), "kMaxAppExtLeds"), MAX_EXT_LEDS);
+  });
+
+  test("the firmware lights the strip the way extled.mjs says", { skip: compiler ? false : "no C++ toolchain that links" }, () => {
+    const dir = mkdtempSync(join(tmpdir(), "nhos-extled-"));
+    try {
+      writeFileSync(join(dir, "harness.cpp"), `
+#include <cstdio>
+#include <cstring>
+#include "AppExtLed.h"
+using namespace nhos;
+static float fromBits(unsigned bits) { float f; std::memcpy(&f, &bits, 4); return f; }
+int main() {
+  char kind;
+  while (std::scanf(" %c", &kind) == 1) {
+    unsigned a, b, c, d;
+    if (kind == 'm') {
+      std::scanf("%x %x %x %u", &a, &b, &c, &d);
+      std::printf("%u\\n", appExtMeterLit(fromBits(a), fromBits(b), fromBits(c), static_cast<uint8_t>(d)));
+    } else if (kind == 'c') {
+      std::scanf("%u %u", &a, &b);
+      uint8_t rgb[3];
+      appExtMeterColour(static_cast<uint8_t>(a), static_cast<uint8_t>(b), rgb);
+      std::printf("%u %u %u\\n", rgb[0], rgb[1], rgb[2]);
+    }
+  }
+}
+`);
+      const binary = join(dir, "harness");
+      execFileSync(/** @type {string} */ (compiler), [...cxxflags, "-std=c++17", "-O2", "-I", FIRMWARE, join(dir, "harness.cpp"), join(FIRMWARE, "AppExtLed.cpp"), "-o", binary]);
+
+      const bits = (/** @type {number} */ value) => new Uint32Array(new Float32Array([value]).buffer)[0].toString(16);
+      const f32 = Math.fround;
+      /** @type {number[]} */
+      const values = [0, -0, 1, -1, 0.001, 49.999, 50, 50.001, 99.99, 100, 100.01, 1e9, -1e9, 1 / 3, 2 / 3,
+        Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
+      let seed = 11;
+      for (let i = 0; i < 300; i += 1) {
+        seed = (seed * 1103515245 + 12345) % 2 ** 31;
+        values.push(f32(((seed % 20001) - 5000) / 100));
+      }
+      const lines = [];
+      const expected = [];
+      for (const value of values) {
+        for (const [lo, hi] of [[0, 100], [-50, 50], [0.1, 0.7], [10, 10], [5, 1]]) {
+          for (const count of [1, 3, 9]) {
+            lines.push(`m ${bits(value)} ${bits(lo)} ${bits(hi)} ${count}`);
+            expected.push(String(extMeterLit(value, lo, hi, count)));
+          }
+        }
+      }
+      for (const count of [1, 2, 3, 9]) {
+        for (let index = 0; index < count; index += 1) {
+          lines.push(`c ${index} ${count}`);
+          expected.push(extMeterColour(index, count).join(" "));
         }
       }
       const actual = execFileSync(binary, { input: `${lines.join("\n")}\n` }).toString().trimEnd().split("\n");
