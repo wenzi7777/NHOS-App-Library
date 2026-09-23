@@ -562,8 +562,11 @@ class Parser {
     if (this.accept(")")) return args;
     for (;;) {
       // A bare region or feature-field name is a literal argument, not an
-      // expression; anything else is parsed as one.
-      if (this.tok.kind === "name" && (
+      // expression; anything else is parsed as one. A name followed by '(' is
+      // always a call: `peak` is a feature field, but `mean(peak(), 60)`
+      // means the peak() sweep.
+      const isCall = this.tokens[this.pos + 1].text === "(";
+      if (this.tok.kind === "name" && !isCall && (
         NAME_ARG_FUNCS.has(callee)
         || this.regions.has(this.tok.text)
         || FEATURE_FIELDS.includes(this.tok.text)

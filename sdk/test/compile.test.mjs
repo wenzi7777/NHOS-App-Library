@@ -136,6 +136,20 @@ describe("diagnostics", () => {
   });
 });
 
+describe("arguments", () => {
+  test("a call whose name is also a feature field is still a call", () => {
+    // `peak` names a feature field, so it used to be taken as a bare word and
+    // the '(' after it reported as a syntax error.
+    const { package: pkg } = build("signal p = mean(peak(), 60)\nevent e when p > 1\n");
+    assert.deepEqual(pkg.nodes.slice(0, 2).map((n) => n.op), ["peak", "mean"]);
+  });
+
+  test("a bare feature field is still a field", () => {
+    const { package: pkg } = build("signal p = feature(peak)\nevent e when p > 1\n");
+    assert.equal(pkg.nodes[1].field, "peak");
+  });
+});
+
 describe("comparisons", () => {
   test("less-than is compiled and the cost is disclosed", () => {
     const { package: pkg, report } = build("signal load = budget_load()\nevent easy when load < 0.9\n");
