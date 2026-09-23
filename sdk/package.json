@@ -1,0 +1,24 @@
+{
+  "name": "@nhos/app-sdk",
+  "version": "1.0.0",
+  "description": "Compiler, validator and simulator for New Horizons OS apps. Zero dependencies; runs in Node and in the browser.",
+  "type": "module",
+  "license": "MPL-2.0",
+  "main": "./lib/index.mjs",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./lib/index.mjs"
+    }
+  },
+  "bin": {
+    "nhos": "./bin/nhos.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\""
+  }
+}

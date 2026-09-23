@@ -33,3 +33,31 @@ jobs:
       - name: Require a version bump for changed packages
         if: github.event_name == 'pull_request'
         run: python tools/check_versions.py --base origin/${{ github.base_ref }}
+
+  # The JavaScript toolchain that replaces tools/*.py. Runs beside the Python
+  # job until that is removed; sdk/test/parity.test.mjs holds the two together.
+  sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile sources
+        run: node sdk/bin/nhos.mjs compile
+
+      - name: Validate packages
+        run: node sdk/bin/nhos.mjs validate
+
+      - name: Unit tests
+        working-directory: sdk
+        run: npm test
+
+      - name: Rebuild index and fail if it drifted
+        run: node sdk/bin/nhos.mjs build-index --check
