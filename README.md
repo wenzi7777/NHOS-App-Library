@@ -24,14 +24,19 @@ apps/<id>/
 dist/<id>/
   <id>-<version>.nha    published artifact (generated); never rewritten
   <id>-latest.nha       pointer copy
-tools/
-  opset.py              op table + cost model -- the single source of truth
-  compile.py            .nhs -> .nha
-  validate.py           everything the device checks, plus what it cannot
-  simulate.py           runs a package against recorded frames, no device needed
-  build_index.py        compiles every app, regenerates dist/ and index.json
-  check_versions.py     refuses a changed package that reuses its version
+sdk/                    the toolchain: plain JavaScript, no dependencies
+  lib/opset.mjs         op table + cost model -- the single source of truth
+  lib/compile.mjs       .nhs -> .nha
+  lib/validate.mjs      everything the device checks, plus what it cannot
+  lib/simulate.mjs      runs a package against frames, no device needed
+  bin/nhos.mjs          the command line (compile, validate, simulate,
+                        build-index, check-versions)
 ```
+
+The same `sdk/lib` runs in the Desktop app's SDK page, which is the easiest
+way to write an app: an editor with live errors, a cost report, and a
+simulator that replays recordings or a live device. Everything below works
+without it.
 
 ## Writing an app
 
@@ -53,12 +58,13 @@ event heel_strike when heel_load > 40 hyst 6 for 30ms
 1. `mkdir apps/<id>` and write `app.nhs`. The id must match
    `^[a-z][a-z0-9_]{0,14}$` — **15 characters maximum**, because
    `/files/apps/<id>.nha` has to fit SPIFFS' 31-character path limit.
-2. `python tools/compile.py` until it passes. It reports node count, how many
-   nodes were shared, estimated cost and the minimum OS version.
-3. `python tools/build_index.py` and commit the generated `app.nha`, `dist/`
-   and `index.json` alongside your source.
+2. `node sdk/bin/nhos.mjs compile apps/<id>/app.nhs` until it passes. It
+   reports node count, how many nodes were shared, estimated cost and the
+   minimum OS version. Node 18 or newer; there is nothing to install.
+3. `node sdk/bin/nhos.mjs build-index` and commit the generated `app.nha`,
+   `dist/` and `index.json` alongside your source.
 4. Check the behaviour against real data before touching hardware:
-   `python tools/simulate.py apps/<id>/app.nha session.csv --budget`
+   `node sdk/bin/nhos.mjs simulate apps/<id>/app.nhs session.csv --rows 15 --cols 15 --budget`
 5. Open a PR. CI re-runs all of the above and additionally requires a version
    bump if you changed an app that already exists.
 

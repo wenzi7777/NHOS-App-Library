@@ -50,7 +50,18 @@ signal <name> = <expression>
 event  <name> when <expression> <cmp> <number> [hyst <number>] [for <n>ms]
 emit   <name> value <expression> on rise(<event>)
 led    <colour> when <event>
+
+gate (<expression> <cmp> <number> ...) {
+  signal / event / emit / led statements
+}
 ```
+
+A `gate` block is skipped on frames where its condition is false; the nodes
+inside hold their last values. See [Self-degradation](#self-degradation).
+
+Names may contain `-` and `.` (so an author name like `jane-doe` reads as one
+word), which means `l-r` is one unknown name, not a subtraction. Write
+`l - r`.
 
 Expressions support `+ - * /`, parentheses, unary minus, numbers, previously
 declared signals, and:
@@ -83,25 +94,35 @@ device as `unknown_op`.
 
 | Limit | Value | Where it comes from |
 |---|---|---|
-| Nodes per graph | 12 | `RuleEngineApp::kMaxNodes` |
+| Nodes per graph | 12 | `FlowApp::kMaxNodes` |
 | Package size | 4096 bytes | the firmware's parse buffer |
 | App id length | 15 chars | `/files/apps/<id>.nha` vs SPIFFS' 31-char path cap |
-| Event name | 23 chars | `RuleNode::event` is `char[24]` |
-| Window length | 240 frames | ring buffer memory |
+| Event name | 23 chars | `FlowNode::event` is `char[24]` |
+| Window length | 128 frames | `FlowApp::kMaxWindow` |
+| All windows together | 128 floats | `FlowApp::kWindowPool`, one pool per slot |
+| Cost per frame | 1500 us | `FlowApp::kDefaultBudgetUs`, or the manifest's `budget_us` if lower |
+| Debounce time | 65535 ms | `FlowNode::ms` is a `uint16_t` |
+| Region index | 255 | `FlowNode::r0..c1` are `uint8_t` |
+| LED colour | red, green, blue, white, off | the firmware's palette |
+
+The window pool is the one that catches people out: two `mean(x, 100)` are
+each within the window limit, but together need 200 floats from a pool of 128,
+and the device refuses the graph as `window_pool_exhausted`.
 
 The id limit bites in a confusing place if you ignore it: the Desktop uploads
 `apps/<id>.nha` *before* calling `app_install`, so an over-long id fails during
 the upload with `path_too_long` and you never see an install error at all.
-`validate.py` catches it first.
+The validator catches it first.
 
 ## Cost model
 
-Sweep operators cost 60 ns per cell (`features` costs 120 ns per cell, since it
-does more work per cell); scalar operators cost a flat 400 ns. These are
-deliberate over-estimates — the goal is a bound, not a prediction.
+Sweep operators cost 300 ns per cell (`features` costs 500 ns per cell, since
+it does more work per cell); scalar operators cost a flat 600 ns. These were
+measured on a v1.5.F (about 86 ns and 235 ns per cell) and carry roughly 2x
+margin — the goal is a bound, not a prediction.
 
-`tools/opset.py` holds these constants and the firmware's
-`RuleEngineApp::estimateUs()` must agree with them. **That agreement is a
+`sdk/lib/opset.mjs` holds these constants and the firmware's
+`FlowApp::estimateUs()` must agree with them. **That agreement is a
 compatibility contract.** If they drift, an app passes locally and is refused
 by the device, which is the most confusing failure this system can produce.
 
@@ -143,23 +164,32 @@ has nothing to do with the subject. Recorded, it is merely honest.
 
 ## Testing without a device
 
-`tools/simulate.py` runs a package against a recorded sample CSV:
+The Desktop app's SDK page replays a recording, or a live device's stream,
+through the graph and shows every node's value as it goes. From the command
+line, `simulate` does the same against a recorded sample CSV:
 
 ```
-python tools/simulate.py apps/heel_strike/app.nha session.csv \
-    --events session.events.csv --budget
+node sdk/bin/nhos.mjs simulate apps/heel_strike/app.nhs session.csv \
+    --rows 15 --cols 15 --events simulated.events.csv --compare session.events.csv
 ```
 
 It prints an event timeline and, with `--events`, writes the **same
-`.events.csv` shape the Desktop writes beside a recording** -- so a simulated
-run and a real one can be diffed row by row. `--budget` prints the per-node
-cost breakdown.
+`.events.csv` shape the Desktop writes beside a recording**. `--compare` lines
+the simulated events up against the ones the device actually recorded, by
+`frame_seq`, and exits non-zero if they differ. `--budget` prints the per-node
+cost breakdown. A recording does not store the matrix shape, so pass
+`--rows`/`--cols` for any board that is not square.
+
+The simulator computes in 32-bit float, as the ESP32 does, so a threshold
+right on a boundary goes the way it will on the device. It does not model the
+device dropping frames: a recording can miss frames the device evaluated,
+which shows up as an event a frame or two off.
 
 This is worth more than convenience. The graph's semantics -- how a threshold
 latches, when a debounce commits, which edge emits -- otherwise exist only in
 the firmware's C++, where nothing can assert on them. The simulator is the
-executable specification, and `tests/test_firmware_contract.py` reads the
-firmware's own headers to check that the two have not drifted.
+executable specification, and `sdk/test/firmware-contract.test.mjs` reads the
+firmware's own sources to check that the constants have not drifted.
 
 ## A note on scope
 

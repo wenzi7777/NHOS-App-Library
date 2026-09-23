@@ -5,8 +5,8 @@ JavaScript with no dependencies. The same files run under Node (the `nhos`
 command below) and in the browser (the Desktop app's SDK page vendors
 `lib/` and `index.d.ts`).
 
-It replaces `tools/*.py`. While both exist, `test/parity.test.mjs` checks that
-they produce the same packages and the same events.
+It replaced the library's original Python tools (`tools/*.py`), after a
+parity test showed both produced the same packages and the same events.
 
 ## Command line
 

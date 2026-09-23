@@ -11,43 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # build_index.py --check compares against the committed tree, and the
+          # build-index --check compares against the committed tree, and the
           # version-bump guard needs main to diff against.
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Compile sources
-        run: python tools/compile.py
-
-      - name: Validate packages
-        run: python tools/validate.py
-
-      - name: Unit tests
-        run: python -m unittest discover -s tests -t tests -q
-
-      - name: Rebuild index and fail if it drifted
-        run: python tools/build_index.py --check
-
-      - name: Require a version bump for changed packages
-        if: github.event_name == 'pull_request'
-        run: python tools/check_versions.py --base origin/${{ github.base_ref }}
-
-  # The JavaScript toolchain that replaces tools/*.py. Runs beside the Python
-  # job until that is removed; sdk/test/parity.test.mjs holds the two together.
-  sdk:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
 
       - name: Compile sources
         run: node sdk/bin/nhos.mjs compile
@@ -61,3 +30,7 @@ jobs:
 
       - name: Rebuild index and fail if it drifted
         run: node sdk/bin/nhos.mjs build-index --check
+
+      - name: Require a version bump for changed packages
+        if: github.event_name == 'pull_request'
+        run: node sdk/bin/nhos.mjs check-versions --base origin/${{ github.base_ref }}
