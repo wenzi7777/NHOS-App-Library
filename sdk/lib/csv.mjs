@@ -102,7 +102,11 @@ export function parseSamplesCsv(text, shape = {}) {
     .sort((a, b) => Number(a.match?.[1]) - Number(b.match?.[1]))
     .map((column) => column.index);
   if (pressure.length === 0) throw new Error("no P1..Pn columns found");
-  const tsIndex = header.indexOf("timestamp_ms");
+  // Recordings from before v0.9 name the column "Timestamp" (still epoch ms)
+  // and have no frame_seq; they are read the same way, numbered by row.
+  const tsIndex = header.indexOf("timestamp_ms") >= 0
+    ? header.indexOf("timestamp_ms")
+    : header.findIndex((name) => name.trim().toLowerCase() === "timestamp");
   const seqIndex = header.indexOf("frame_seq");
   const { rows, cols } = inferShape(pressure.length, shape.rows, shape.cols);
 

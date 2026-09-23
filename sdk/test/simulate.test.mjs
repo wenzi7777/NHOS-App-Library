@@ -212,6 +212,20 @@ describe("sidecar", () => {
     assert.deepEqual([frame.rows, frame.cols], [2, 2]);
   });
 
+  test("an older recording's Timestamp column is read as milliseconds", () => {
+    const frames = parseSamplesCsv("Timestamp,P1,P2\n1716026911000,1,2\n1716026911016,3,4\n", { rows: 1, cols: 2 });
+    assert.deepEqual(frames.map((f) => [f.seq, f.timestampMs]), [[0, 1716026911000], [1, 1716026911016]]);
+  });
+
+  test("debounce holds across the uint32 wrap of an epoch timestamp", () => {
+    // The device's clock is millis(); an epoch-ms recording wraps it, and the
+    // hold must still be measured as a difference.
+    const pkg = pkgOf("signal a = total()\nevent hit when a > 10 for 50ms\n");
+    const start = 2 ** 32 - 20;
+    const frames = [0, 20, 20, 20, 20, 20].map((v, i) => ({ seq: i, timestampMs: start + i * 16, values: [v], rows: 1, cols: 1 }));
+    assert.deepEqual(details(new Simulator(pkg).run(frames)), ["rise"]);
+  });
+
   test("pressure columns are ordered numerically, not lexically", () => {
     const [frame] = parseSamplesCsv("timestamp_ms,P10,P2,P1\n0,10,2,1\n", { rows: 1, cols: 3 });
     assert.deepEqual([...frame.values], [1, 2, 10]);
