@@ -15,7 +15,12 @@
 
 // --- hard limits, all mirrored in the firmware -----------------------------
 
-export const MAX_NODES = 12; // FlowApp::kMaxNodes
+export const MAX_NODES = 24; // FlowApp::kMaxNodes
+// Firmware before v1.3.0 holds 12 nodes per graph. A larger graph needs
+// v1.3.0, and min_os says so -- otherwise an older device would refuse it as
+// too_many_nodes after upload.
+export const LEGACY_MAX_NODES = 12;
+export const MIN_OS_FOR_LARGE_GRAPHS = "v1.3.0";
 export const MAX_PACKAGE_BYTES = 4096; // FlowApp::kMaxPackageBytes
 export const MAX_EVENT_NAME = 23; // FlowNode::event is char[24]
 export const MAX_WINDOW = 128; // FlowApp::kMaxWindow
@@ -253,8 +258,13 @@ export function appShareUs(fps, runningApps) {
   return Math.floor((periodUs * GOVERNOR_CEILING_PERMILLE) / 1000 / Math.max(1, runningApps));
 }
 
-/** @param {ReadonlyArray<{op?: unknown}>} nodes */
+/**
+ * The oldest firmware that can load a graph: from the ops it uses, and from
+ * its size.
+ * @param {ReadonlyArray<{op?: unknown}>} nodes
+ */
 export function minOsFor(nodes) {
+  if (nodes.length > LEGACY_MAX_NODES) return MIN_OS_FOR_LARGE_GRAPHS;
   return nodes.some((node) => opSpec(node.op).since !== "v1.0.0") ? "v1.1.0" : "v1.0.0";
 }
 

@@ -71,7 +71,7 @@ describe("sharing", () => {
 describe("cost report", () => {
   test("over the node limit names the biggest contributors", () => {
     const body = Array.from({ length: 14 }, (_, i) => `signal s${i} = total() + ${i}\n`).join("");
-    assertFails(`${body}event e when s0 > 1\n`, "exceeds the 12-node limit");
+    assertFails(`${body}event e when s0 > 1\n`, "exceeds the 24-node limit");
     assertFails(`${body}event e when s0 > 1\n`, "Largest contributors");
   });
 
@@ -81,6 +81,18 @@ describe("cost report", () => {
     const { package: pkg } = build("signal c = active(3.0)\nevent e when c > 1\n");
     assert.ok(!pkg.nodes.some((n) => n.op === "const"));
     assert.equal(pkg.manifest.min_os, "v1.0.0");
+  });
+
+  test("a graph over 12 nodes needs the firmware that holds 24", () => {
+    // Firmware before v1.3.0 refuses it as too_many_nodes after upload.
+    const gait = "region heel = rows 9..14, cols 0..14\nregion toe = rows 0..5, cols 0..14\n"
+      + "signal heel_load = sum(heel)\nsignal toe_load = sum(toe)\n"
+      + "event heel_strike when heel_load > 40 hyst 6 for 30ms\nevent toe_off when toe_load < 10 for 30ms\n"
+      + "signal steps = counter(feature(in_contact))\nemit step_count value steps on rise(heel_strike)\n"
+      + "led green when heel_strike\n";
+    const { package: pkg, report } = build(gait);
+    assert.equal(report.nodes, 15);
+    assert.equal(pkg.manifest.min_os, "v1.3.0");
   });
 
   test("min_os is derived from the ops used", () => {

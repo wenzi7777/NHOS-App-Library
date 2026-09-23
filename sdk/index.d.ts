@@ -4,6 +4,8 @@
 // --- op set ------------------------------------------------------------------
 
 export const MAX_NODES: number;
+export const LEGACY_MAX_NODES: number;
+export const MIN_OS_FOR_LARGE_GRAPHS: string;
 export const MAX_PACKAGE_BYTES: number;
 export const MAX_EVENT_NAME: number;
 export const MAX_WINDOW: number;

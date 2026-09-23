@@ -86,7 +86,8 @@ scalar nodes, not eight sweeps.
 which costs two extra nodes and pulls the graph up to v1.1.0. The compiler says
 so when it happens.
 
-`capabilities` and `min_os` are **derived** from the ops used. Do not declare
+`capabilities` and `min_os` are **derived** from the ops used (and, for
+`min_os`, from the graph's size: more than 12 nodes needs v1.3.0). Do not declare
 them — a hand-written `min_os` that is too low passes here and then fails on the
 device as `unknown_op`.
 
@@ -94,7 +95,7 @@ device as `unknown_op`.
 
 | Limit | Value | Where it comes from |
 |---|---|---|
-| Nodes per graph | 12 | `FlowApp::kMaxNodes` |
+| Nodes per graph | 24 (12 before OS v1.3.0) | `FlowApp::kMaxNodes`; a graph over 12 gets `min_os: v1.3.0` |
 | Package size | 4096 bytes | the firmware's parse buffer |
 | App id length | 15 chars | `/files/apps/<id>.nha` vs SPIFFS' 31-char path cap |
 | Event name | 23 chars | `FlowNode::event` is `char[24]` |

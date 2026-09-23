@@ -109,7 +109,15 @@ describe("manifest rejection", () => {
 
 describe("graph rejection", () => {
   test("empty graph", () => assertGraphRejects([], "empty_graph"));
-  test("too many nodes", () => assertGraphRejects(Array(13).fill({ op: "total" }), "too_many_nodes"));
+  test("too many nodes", () => assertGraphRejects(Array(25).fill({ op: "total" }), "too_many_nodes:25>24"));
+
+  test("a graph over 12 nodes may not claim firmware that holds only 12", () => {
+    assertGraphRejects(Array(13).fill({ op: "total" }), "min_os_too_low:declares_v1.2.3_needs_v1.3.0", { min_os: "v1.2.3" });
+    const doc = clone(GOOD);
+    doc.nodes = Array(13).fill({ op: "total" });
+    doc.manifest.min_os = "v1.3.0";
+    assert.equal(validatePackage(doc).nodes, 13);
+  });
   test("unknown op", () => assertGraphRejects([{ op: "teleport" }], "unknown_op"));
 
   test("forward references are impossible", () => {
