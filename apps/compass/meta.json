@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Compass",
+    "ja": "コンパス",
+    "zh-CN": "指南针"
+  },
+  "summary": {
+    "en": "Heading and field strength; detects a nearby magnet.",
+    "ja": "方位と磁場強度を表示し、近くの磁石を検出します。",
+    "zh-CN": "显示方位与磁场强度，检测附近的磁铁。"
+  },
+  "license": "MPL-2.0"
+}

@@ -1,0 +1,25 @@
+# Temporal gait parameters, per step: how long the foot was on the ground
+# (stance) and how long from one strike to the next (stride). Neither needs a
+# window, so a slow walk is timed as well as a fast one.
+app gait_time {
+  name    "Gait Timing"
+  version 1.0.0
+  author  wenzi7777
+  summary "Stance time and stride time for every step."
+  category biomechanics
+  icon    clock
+}
+
+event stance when total() > 300 hyst 100 for 20ms
+
+signal stance_ms = peak_since(duration(stance), stance)
+signal stride_ms = interval(stance)
+# The share of each stride spent on the ground.
+signal duty = stance_ms / stride_ms
+
+emit stance_ms value stance_ms on fall(stance)
+emit stride_ms value stride_ms on rise(stance)
+
+show 0 "Stance" stance_ms
+show 1 "Stride" stride_ms
+bar  2 "Duty" duty range 0..1

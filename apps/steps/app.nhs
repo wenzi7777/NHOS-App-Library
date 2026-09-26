@@ -1,0 +1,26 @@
+# A step counter that survives a reboot. A step is a heel strike on the rear
+# half of the matrix; the count is kept in the device's NVS, and a press of
+# the action button starts it over.
+app steps {
+  name    "Step Counter"
+  version 1.0.0
+  author  wenzi7777
+  summary "Counts heel strikes; kept across reboots, button resets."
+  category biomechanics
+  icon    foot
+}
+
+region heel = rows 50%..100%, cols 0%..100%
+
+signal heel_load = sum(heel)
+event strike when heel_load > 300 hyst 100 for 30ms
+
+signal steps = counter(strike, button()) persist
+# Steps a minute from the last two strikes; 0 until there have been two.
+signal cadence = 60000 / interval(strike)
+
+emit step value steps on rise(strike)
+
+led green when strike
+show 0 "Steps" steps
+show 1 "Per min" cadence

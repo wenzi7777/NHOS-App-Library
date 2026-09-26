@@ -1,0 +1,23 @@
+# The highest cell and the highest total load of each step, reported once
+# the step ends. A running maximum restarted on every strike, so one heavy
+# step does not hide the ones after it.
+app step_peak {
+  name    "Step Peak"
+  version 1.0.0
+  author  wenzi7777
+  summary "Peak cell and peak load of every step, as it ends."
+  category biomechanics
+  icon    peak
+}
+
+event stance when total() > 300 hyst 100 for 20ms
+
+signal cell_peak = peak_since(peak(), stance)
+signal load_peak = peak_since(total(), stance)
+
+emit step_cell value cell_peak on fall(stance)
+emit step_load value load_peak on fall(stance)
+
+show 0 "Cell pk" cell_peak
+show 1 "Load pk" load_peak
+bar  2 "Cell" cell_peak range 0..2000

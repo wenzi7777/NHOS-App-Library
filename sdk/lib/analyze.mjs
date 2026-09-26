@@ -164,6 +164,12 @@ const CODE_MESSAGES = {
   invalid_oled_digits: "an OLED value shows 0 to 3 decimals",
   invalid_bar_range: "a bar's range must go from low to high",
   never_evaluated: "without read_matrix the device never wakes the graph for a frame, so it never runs",
+  invalid_region_percent: "a percent bound is 0 to 100, first no larger than last",
+  invalid_region_rel: "rel is 1 (rows), 2 (columns) or 3 (both), on a region op only",
+  invalid_persist: "only a counter can persist",
+  min_os_too_low: "the graph uses something older firmware lacks or would silently ignore",
+  invalid_chart_points: "a chart keeps 10 to 600 polls of history",
+  too_many_series: "a chart plots at most 4 series",
 };
 
 /** @param {string} code */

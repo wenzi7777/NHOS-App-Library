@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Tap Counter",
+    "ja": "タップカウンター",
+    "zh-CN": "点按计数"
+  },
+  "summary": {
+    "en": "Counts presses and times each hold; button resets.",
+    "ja": "押下回数を数え、各押下の保持時間を計測。ボタンでリセット。",
+    "zh-CN": "统计按压次数并记录每次按住时长，按按钮清零。"
+  },
+  "license": "MPL-2.0"
+}

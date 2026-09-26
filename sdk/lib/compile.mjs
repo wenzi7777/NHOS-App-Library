@@ -14,23 +14,30 @@
  *
  * Grammar
  * -------
- *     app <id> { name "..."  version 1.2.0  author me  summary "..." }
- *     region <name> = rows <a>..<b>, cols <c>..<d>
- *     signal <name> = <expr>
+ *     app <id> { name "..."  version 1.2.0  author me  summary "..."  [background yes] }
+ *     region <name> = rows <a>[%]..<b>[%], cols <c>[%]..<d>[%]
+ *     signal <name> = <expr> [persist]
  *     event  <name> when <expr> <cmp> <number> [hyst <number>] [for <n>ms]
- *     emit   <name> value <expr> on rise(<event>)
+ *     event  <name> when <boolean expr> [for <n>ms]
+ *     emit   <name> value <expr> on rise(<event>) | on fall(<event>)
  *     led    <colour> when <event>
  *     show   <row> "<label>" <expr> [digits <n>]
  *     bar    <row> "<label>" <expr> range <lo>..<hi>
  *     pixel  <index> <colour> when <event>
  *     meter  <expr> range <lo>..<hi>
- *     gate (<expr> <cmp> <number> ...) { signal/event/emit/led/show/bar/pixel/meter ... }
+ *     gate (<condition>) { signal/event/emit/led/show/bar/pixel/meter ... }
+ *
+ * An event's name is also a value: its boolean, 1 while it holds and 0 when
+ * not, which is what counter(), duration(), select() and friends consume.
  */
 
 import {
   DEFAULT_CELL_COUNT,
   FEATURE_FIELDS,
+  IMU_FIELDS,
   LED_COLOURS,
+  MAG_FIELDS,
+  MAX_REL_PERCENT,
   MAX_DEBOUNCE_MS,
   MAX_EVENT_NAME,
   MAX_EXT_LEDS,
@@ -40,6 +47,9 @@ import {
   MAX_REGION_INDEX,
   OLED_LABEL_RE,
   OLED_ROWS,
+  OPS,
+  REL_COLS,
+  REL_ROWS,
   graphCostUs,
   graphMemoryBytes,
   minOsFor,
@@ -201,31 +211,46 @@ function internKey(node) {
 
 /** @type {Record<string, string>} */
 const SWEEP_FUNCS = { total: "total", peak: "peak", arg_max: "arg_max", row_centroid: "row_centroid", col_centroid: "col_centroid" };
+/** The same sweeps over one region: `peak(heel)` rather than `peak()`. */
+/** @type {Record<string, string>} */
+const REGION_FUNCS = { peak: "region_peak", row_centroid: "region_row_centroid", col_centroid: "region_col_centroid" };
+/** Functions whose one argument must be a boolean: an event, button(), linked(). */
+/** @type {Record<string, string>} */
+const BOOLEAN_ARG_FUNCS = { not: "not", duration: "duration", interval: "interval" };
 /** @type {Record<string, string>} */
 const WINDOW_FUNCS = { mean: "mean", max_hold: "max_hold", integrate: "integrate" };
 /** @type {Record<string, string>} */
-const UNARY_FUNCS = { abs: "abs", delta: "delta", counter: "counter" };
+const UNARY_FUNCS = { abs: "abs", delta: "delta", sqrt: "sqrt" };
 /** @type {Record<string, string>} */
-const BINARY_FUNCS = { min: "min", max: "max" };
+const BINARY_FUNCS = { min: "min", max: "max", atan2: "atan2" };
 /** @type {Record<string, string>} */
-const NULLARY_FUNCS = { budget_load: "budget_load", grace_left: "grace_left" };
+const NULLARY_FUNCS = { budget_load: "budget_load", grace_left: "grace_left", uptime: "uptime" };
+/** Reading one of these needs the capability beside it. */
+/** @type {Record<string, [string, string]>} */
+const SENSOR_FUNCS = { battery: ["battery", "power"], linked: ["linked", "link"] };
 /** @type {Record<string, string>} */
 const ARITH_OPS = { "+": "add", "-": "sub", "*": "mul", "/": "div", "%": "mod" };
 
 const HEADER_STRING_FIELDS = new Set(["name", "summary"]);
 const HEADER_WORD_FIELDS = new Set(["version", "author", "category", "icon"]);
+/** Header switches that set a capability rather than a manifest field. */
+const HEADER_SWITCHES = new Set(["background"]);
 /** Functions whose arguments are bare names, not expressions. */
-const NAME_ARG_FUNCS = new Set(["sum", "feature"]);
+const NAME_ARG_FUNCS = new Set(["sum", "feature", "imu", "mag"]);
+const COMPARISONS = [">", ">=", "<", "<="];
 
 /** Every name the language gives meaning to, for an editor's completion list. */
 export const LANGUAGE = Object.freeze({
   statements: ["app", "region", "signal", "event", "emit", "led", "show", "bar", "pixel", "meter", "gate"],
-  keywords: ["rows", "cols", "when", "hyst", "for", "ms", "value", "on", "rise", "digits", "range"],
-  headerFields: [...HEADER_STRING_FIELDS, ...HEADER_WORD_FIELDS],
+  keywords: ["rows", "cols", "when", "hyst", "for", "ms", "value", "on", "rise", "fall", "digits", "range", "persist"],
+  headerFields: [...HEADER_STRING_FIELDS, ...HEADER_WORD_FIELDS, ...HEADER_SWITCHES],
   functions: ["sum", "total", "peak", "active", "feature", "arg_max", "row_centroid", "col_centroid",
     "mean", "max_hold", "integrate", "delta", "abs", "counter", "min", "max", "clamp", "budget_load", "grace_left",
-    "button"],
+    "button", "not", "select", "duration", "interval", "peak_since", "sqrt", "atan2",
+    "imu", "mag", "battery", "linked", "uptime"],
   featureFields: FEATURE_FIELDS,
+  imuFields: IMU_FIELDS,
+  magFields: MAG_FIELDS,
   colours: Object.keys(LED_COLOURS),
 });
 
@@ -235,6 +260,7 @@ export const LANGUAGE = Object.freeze({
  * @property {number} c0
  * @property {number} r1
  * @property {number} c1
+ * @property {number} rel REL_ROWS / REL_COLS bits: which bounds are percentages
  * @property {number} line
  */
 
@@ -268,6 +294,7 @@ class Parser {
     this.notes = [];
     this.notedDisplay = false;
     this.notedExtLed = false;
+    this.notedRelative = false;
   }
 
   // -- token helpers --
@@ -357,6 +384,19 @@ class Parser {
         const token = this.take();
         if (token.kind === "eof") throw this.fail(`missing value for '${key}'`, token);
         this.manifest[key] = token.text.replace(/^"+|"+$/g, "");
+      } else if (HEADER_SWITCHES.has(key)) {
+        const token = this.take();
+        if (token.text !== "yes" && token.text !== "no") throw this.fail(`'${key}' is yes or no, found ${describe(token)}`, token);
+        // background: keep evaluating on the device's 10 Hz tick while no
+        // frames arrive -- the scanner is stopped, or nothing is streaming.
+        if (token.text === "yes") {
+          this.capabilities.add("tick");
+          this.notes.push({
+            message: "runs 10 times a second while no frames arrive; matrix reads hold their last values then",
+            line: keyToken.line,
+            col: keyToken.col,
+          });
+        }
       } else {
         throw this.fail(`unknown app field '${key}'`, keyToken);
       }
@@ -370,37 +410,129 @@ class Parser {
     const name = nameToken.text;
     this.expect("=");
     this.expect("rows");
-    const r0 = this.expectInteger("a row index").value;
-    this.expect("..");
-    const r1 = this.expectInteger("a row index").value;
+    const rows = this.parseSpan("row", name);
     this.expect(",");
     this.expect("cols");
-    const c0 = this.expectInteger("a column index").value;
-    this.expect("..");
-    const c1 = this.expectInteger("a column index").value;
-    if (r0 > r1 || c0 > c1) throw this.fail(`region '${name}' has an inverted range`, nameToken);
-    if (Math.max(r0, r1, c0, c1) > MAX_REGION_INDEX) {
-      throw this.fail(`region '${name}' exceeds index ${MAX_REGION_INDEX}`, nameToken);
+    const cols = this.parseSpan("column", name);
+    const rel = (rows.relative ? REL_ROWS : 0) | (cols.relative ? REL_COLS : 0);
+    if (rel && !this.notedRelative) {
+      this.notedRelative = true;
+      this.notes.push({
+        message: "percent bounds are resolved against each board's own matrix; a row or column a boundary splits belongs to both sides",
+        line: start.line,
+        col: start.col,
+      });
     }
-    this.regions.set(name, { r0, c0, r1, c1, line: start.line });
+    this.regions.set(name, { r0: rows.a, c0: cols.a, r1: rows.b, c1: cols.b, rel, line: start.line });
+  }
+
+  /**
+   * `<a>..<b>` in indices, or `<a>%..<b>%` in percent of the matrix. Both ends
+   * of one span use the same unit; rows and columns may differ.
+   * @param {string} what
+   * @param {string} region
+   */
+  parseSpan(what, region) {
+    const first = this.expectInteger(`a ${what} bound`);
+    const aPercent = this.accept("%");
+    this.expect("..");
+    const second = this.expectInteger(`a ${what} bound`);
+    const bPercent = this.accept("%");
+    if (aPercent !== bPercent) {
+      throw this.fail(`region '${region}' mixes an index and a percent in one ${what} range`, second.token);
+    }
+    const a = first.value;
+    const b = second.value;
+    if (a > b) throw this.fail(`region '${region}' has an inverted range`, second.token);
+    const limit = aPercent ? MAX_REL_PERCENT : MAX_REGION_INDEX;
+    if (b > limit) {
+      throw this.fail(aPercent ? `region '${region}' exceeds 100%` : `region '${region}' exceeds index ${MAX_REGION_INDEX}`, second.token);
+    }
+    return { a, b, relative: aPercent };
   }
 
   parseSignal() {
     this.expect("signal");
     const name = this.expectKind("name").text;
     this.expect("=");
-    this.signals.set(name, this.parseExpr());
+    const node = this.parseExpr();
+    if (this.tok.text === "persist") {
+      const token = this.take();
+      const target = this.builder.nodes[node];
+      if (target.op !== "counter" && target.op !== "counter_reset") {
+        throw this.fail("only a counter() can persist", token);
+      }
+      // Set on the node itself, so every use of this counter -- shared by
+      // interning -- is the one that survives a reboot.
+      target.persist = 1;
+      this.capabilities.add("persist");
+      this.notes.push({
+        message: "kept across reboots in the device's NVS, written at most every 30 s; reinstalling or a new version starts it from 0",
+        line: token.line,
+        col: token.col,
+      });
+    }
+    this.signals.set(name, node);
   }
 
-  /** `<expr> <cmp> <number> [hyst <n>] [for <n>ms]` -> boolean node index. */
+  /**
+   * What `on rise(x)`, `led ... when x` and `pixel ... when x` fire on: an
+   * event, or a signal that is a boolean -- `signal press = button()` -- so
+   * reacting to one does not need an event, which would log rise/fall too.
+   * @param {Token} token
+   */
+  trigger(token) {
+    const event = this.events.get(token.text);
+    if (event !== undefined) return event;
+    const signal = this.signals.get(token.text);
+    if (signal !== undefined) {
+      if (!this.isBoolean(signal)) throw this.fail(`'${token.text}' is a number, not an event or a boolean`, token);
+      return signal;
+    }
+    throw this.fail(`unknown event '${token.text}'`, token);
+  }
+
+  /**
+   * Whether a node yields a boolean the device's edge-driven ops can read.
+   * Arithmetic has none: counter(heel_load) would count nothing, forever.
+   * @param {number} index
+   */
+  isBoolean(index) {
+    const node = this.builder.nodes[index];
+    if (node.op === "feature_get") return node.field === "in_contact";
+    return OPS[node.op]?.boolean === true;
+  }
+
+  /**
+   * @param {number|Token} arg
+   * @param {Token} at
+   * @param {string} what
+   */
+  booleanArg(arg, at, what) {
+    const index = this.node(arg, at);
+    if (!this.isBoolean(index)) {
+      throw this.fail(`${what} takes an event or a boolean such as button() -- write the comparison as an event first`, at);
+    }
+    return index;
+  }
+
+  /**
+   * `<expr> <cmp> <number> [hyst <n>] [for <n>ms]`, or a boolean expression
+   * (an event, not(...), button(), linked()) with an optional `for`.
+   * Returns the boolean node index.
+   */
   parseCondition() {
     const first = this.tok;
     let valueNode = this.parseExpr();
-    const comparison = this.take();
-    if (![">", ">=", "<", "<="].includes(comparison.text)) {
-      throw this.fail(`expected a comparison, found ${describe(comparison)}`, comparison);
+    if (!COMPARISONS.includes(this.tok.text)) {
+      if (!this.isBoolean(valueNode)) {
+        throw this.fail(`expected a comparison, found ${describe(this.tok)}`);
+      }
+      return this.parseHold(valueNode);
     }
-    let limit = Number(this.expectKind("number").text);
+    const comparison = this.take();
+    // Signed: a bias from -1 to +1 is compared against -0.3 as naturally as 0.3.
+    let limit = this.signedNumber();
 
     let hysteresis = 0;
     if (this.accept("hyst")) hysteresis = Number(this.expectKind("number").text);
@@ -422,14 +554,20 @@ class Parser {
     /** @type {Record<string, unknown>} */
     const params = { value: limit };
     if (hysteresis) params.hysteresis = hysteresis;
-    let node = this.builder.emit("threshold", [valueNode], params);
+    return this.parseHold(this.builder.emit("threshold", [valueNode], params));
+  }
 
+  /**
+   * The optional `for <n>ms` after a condition.
+   * @param {number} node
+   */
+  parseHold(node) {
     if (this.accept("for")) {
       const { value: ms, token: msToken } = this.expectInteger("a debounce time");
       const unit = this.expectKind("name");
       if (unit.text !== "ms") throw this.fail(`expected 'ms', found '${unit.text}'`, unit);
       if (ms > MAX_DEBOUNCE_MS) throw this.fail(`debounce time exceeds ${MAX_DEBOUNCE_MS}ms`, msToken);
-      node = this.builder.emit("debounce", [node], { ms });
+      return this.builder.emit("debounce", [node], { ms });
     }
     return node;
   }
@@ -492,13 +630,18 @@ class Parser {
     this.expect("value");
     const value = this.parseExpr();
     this.expect("on");
-    this.expect("rise");
+    const edge = this.take();
+    if (edge.text !== "rise" && edge.text !== "fall") throw this.fail(`expected 'rise' or 'fall', found ${describe(edge)}`, edge);
     this.expect("(");
-    const eventToken = this.expectKind("name");
+    const trigger = this.trigger(this.expectKind("name"));
     this.expect(")");
-    const trigger = this.events.get(eventToken.text);
-    if (trigger === undefined) throw this.fail(`unknown event '${eventToken.text}'`, eventToken);
-    this.builder.emit("emit_value", [trigger, value], { event: name });
+    // On a fall, not on the rise of not(event): that is true before the event
+    // has ever happened, and would report once at start-up. A fall is how a
+    // step's peak is reported once the step has ended.
+    /** @type {Record<string, unknown>} */
+    const params = { event: name };
+    if (edge.text === "fall") params.fall = 1;
+    this.builder.emit("emit_value", [trigger, value], params);
     this.capabilities.add("emit_event");
   }
 
@@ -510,9 +653,7 @@ class Parser {
       throw this.fail(`unknown colour '${colour}' (the device has ${Object.keys(LED_COLOURS).join(", ")})`, colourToken);
     }
     this.expect("when");
-    const eventToken = this.expectKind("name");
-    const trigger = this.events.get(eventToken.text);
-    if (trigger === undefined) throw this.fail(`unknown event '${eventToken.text}'`, eventToken);
+    const trigger = this.trigger(this.expectKind("name"));
     this.builder.emit("led", [trigger], { rgb: colour });
     this.capabilities.add("drive_led");
   }
@@ -600,9 +741,7 @@ class Parser {
       throw this.fail(`unknown colour '${colour}' (the device has ${Object.keys(LED_COLOURS).join(", ")})`, colourToken);
     }
     this.expect("when");
-    const eventToken = this.expectKind("name");
-    const trigger = this.events.get(eventToken.text);
-    if (trigger === undefined) throw this.fail(`unknown event '${eventToken.text}'`, eventToken);
+    const trigger = this.trigger(this.expectKind("name"));
     this.builder.emit("ext_pixel", [trigger], { index, rgb: colour });
   }
 
@@ -658,6 +797,11 @@ class Parser {
     }
     if (token.text === "-" && token.kind === "op") {
       this.take();
+      // A negative literal is one constant, not 0 minus a constant: two nodes
+      // of a 24-node budget saved for every `-1` an author writes.
+      if (this.tok.kind === "number") {
+        return this.builder.emit("const", [], { value: -Number(this.take().text) });
+      }
       const zero = this.builder.emit("const", [], { value: 0 });
       return this.builder.emit("sub", [zero, this.parseFactor()]);
     }
@@ -670,6 +814,9 @@ class Parser {
       if (this.tok.text === "(") return this.parseCall(token);
       const signal = this.signals.get(token.text);
       if (signal !== undefined) return signal;
+      // An event is also a value: its boolean node.
+      const event = this.events.get(token.text);
+      if (event !== undefined) return event;
       // The lexer allows '-' and '.' inside names (for author names and
       // versions), so `l-r` is one unknown name, not a subtraction.
       const hint = /[-.]/.test(token.text) ? " (put spaces around '-' to subtract)" : "";
@@ -724,11 +871,15 @@ class Parser {
 
     if (name === "sum") {
       arity(1);
-      const region = args[0];
-      if (typeof region === "number" || !this.regions.has(region.text)) throw fail("sum() takes a region name");
       this.capabilities.add("read_matrix");
-      const { r0, c0, r1, c1 } = /** @type {Region} */ (this.regions.get(region.text));
-      return this.builder.emit("region_sum", [], { r0, c0, r1, c1 });
+      return this.builder.emit("region_sum", [], this.regionParams(args[0], nameToken, "sum() takes a region name"));
+    }
+
+    // peak(heel), row_centroid(heel), col_centroid(heel): the whole-matrix
+    // sweep, over one region.
+    if (Object.hasOwn(REGION_FUNCS, name) && args.length === 1) {
+      this.capabilities.add("read_matrix");
+      return this.builder.emit(REGION_FUNCS[name], [], this.regionParams(args[0], nameToken, `${name}() takes a region name, or nothing for the whole matrix`));
     }
 
     if (Object.hasOwn(SWEEP_FUNCS, name)) {
@@ -738,9 +889,61 @@ class Parser {
     }
 
     if (name === "active") {
-      arity(1);
       this.capabilities.add("read_matrix");
+      if (args.length === 2) {
+        const params = this.regionParams(args[0], nameToken, "active() takes a region and a level, or just a level");
+        return this.builder.emit("region_active", [], { value: this.literal(args[1], nameToken), ...params });
+      }
+      arity(1);
       return this.builder.emit("active_cells", [], { value: this.literal(args[0], nameToken) });
+    }
+
+    if (name === "imu" || name === "mag") {
+      arity(1);
+      const fields = name === "imu" ? IMU_FIELDS : MAG_FIELDS;
+      const token = args[0];
+      if (typeof token === "number" || !fields.includes(token.text)) {
+        throw fail(`${name}() takes one of ${fields.join(", ")}`);
+      }
+      this.capabilities.add(name === "imu" ? "read_imu" : "read_mag");
+      return this.builder.emit(name, [], { field: token.text });
+    }
+
+    if (Object.hasOwn(SENSOR_FUNCS, name)) {
+      arity(0);
+      const [op, capability] = SENSOR_FUNCS[name];
+      this.capabilities.add(capability);
+      return this.builder.emit(op);
+    }
+
+    if (Object.hasOwn(BOOLEAN_ARG_FUNCS, name)) {
+      arity(1);
+      return this.builder.emit(BOOLEAN_ARG_FUNCS[name], [this.booleanArg(args[0], nameToken, `${name}()`)]);
+    }
+
+    if (name === "counter") {
+      if (args.length === 2) {
+        return this.builder.emit("counter_reset", [
+          this.booleanArg(args[0], nameToken, "counter()"),
+          this.booleanArg(args[1], nameToken, "counter()'s reset"),
+        ]);
+      }
+      arity(1);
+      return this.builder.emit("counter", [this.booleanArg(args[0], nameToken, "counter()")]);
+    }
+
+    if (name === "peak_since") {
+      arity(2);
+      return this.builder.emit("peak_since", [this.node(args[0], nameToken), this.booleanArg(args[1], nameToken, "peak_since()'s reset")]);
+    }
+
+    if (name === "select") {
+      arity(3);
+      return this.builder.emit("select", [
+        this.booleanArg(args[0], nameToken, "select()'s condition"),
+        this.node(args[1], nameToken),
+        this.node(args[2], nameToken),
+      ]);
     }
 
     if (name === "feature") {
@@ -793,6 +996,23 @@ class Parser {
   }
 
   /**
+   * A region argument as node fields. `rel` is present only when a bound is a
+   * percentage, so a package with absolute regions is byte-identical to one
+   * compiled before percentages existed.
+   * @param {Token|number} arg
+   * @param {Token} at
+   * @param {string} reason
+   */
+  regionParams(arg, at, reason) {
+    if (typeof arg === "number" || !this.regions.has(arg.text)) throw this.fail(reason, at);
+    const { r0, c0, r1, c1, rel } = /** @type {Region} */ (this.regions.get(arg.text));
+    /** @type {Record<string, number>} */
+    const params = { r0, c0, r1, c1 };
+    if (rel) params.rel = rel;
+    return params;
+  }
+
+  /**
    * Coerce an argument to a node index, materialising a literal if needed.
    * @param {Token|number} arg
    * @param {Token} at
@@ -826,7 +1046,7 @@ class Parser {
     const manifest = { ...this.manifest };
     manifest.capabilities = [...this.capabilities].sort();
     if (!("name" in manifest)) manifest.name = this.appId;
-    manifest.min_os = minOsFor(this.builder.nodes);
+    manifest.min_os = minOsFor(this.builder.nodes, /** @type {string[]} */ (manifest.capabilities));
     return {
       nhapp: 1,
       kind: "flow",

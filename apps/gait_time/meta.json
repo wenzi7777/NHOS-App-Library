@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Gait Timing",
+    "ja": "歩行タイミング",
+    "zh-CN": "步态时间"
+  },
+  "summary": {
+    "en": "Stance time and stride time for every step.",
+    "ja": "各歩の立脚時間とストライド時間。",
+    "zh-CN": "每一步的支撑时间与步幅时间。"
+  },
+  "license": "MPL-2.0"
+}

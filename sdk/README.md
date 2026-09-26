@@ -54,6 +54,14 @@ firmware more closely:
   pool, graphs over the 1500 us budget, debounce times over 65535 ms, and
   region indices over 255. `min_os` is compared as a version.
 - Compile errors carry a column as well as a line.
+- For the v1.6.0 ops, `Simulator.setBattery()` / `setLinked()` set what
+  `battery()` and `linked()` read, `tick(ms)` runs a `background` graph on the
+  device's 10 Hz tick, and `persisted()` with the `restore` option carries
+  `persist` counters across a simulated reboot. A frame's `imu` / `mag`
+  samples come from a recording's `Acc_*`, `Gyro_*` and `Mag_*` columns.
+- `lib/flowmath.mjs` holds the region and angle arithmetic the firmware's
+  `FlowMath.cpp` shares; the contract test compiles that file and compares
+  them value for value.
 
 ## Tests
 

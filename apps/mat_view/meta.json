@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Mat View",
+    "ja": "マットビュー",
+    "zh-CN": "垫面视图"
+  },
+  "summary": {
+    "en": "Front/rear load on the OLED; press the button for page 2.",
+    "ja": "前後の荷重を OLED に表示。ボタンで 2 ページ目へ。",
+    "zh-CN": "在 OLED 显示前后载荷，按按钮切换到第 2 页。"
+  },
+  "license": "MPL-2.0"
+}

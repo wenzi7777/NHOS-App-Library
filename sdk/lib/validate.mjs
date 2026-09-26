@@ -16,7 +16,10 @@ import {
   DEFAULT_BUDGET_US,
   DEFAULT_CELL_COUNT,
   FEATURE_FIELDS,
+  IMU_FIELDS,
   LED_COLOURS,
+  MAG_FIELDS,
+  MAX_REL_PERCENT,
   MAX_DEBOUNCE_MS,
   MAX_EVENT_NAME,
   MAX_EXT_LEDS,
@@ -29,6 +32,8 @@ import {
   OLED_LABEL_RE,
   OLED_ROWS,
   OPS,
+  REL_COLS,
+  REL_ROWS,
   RESERVED_APP_IDS,
   WINDOW_POOL,
   compareVersions,
@@ -40,8 +45,11 @@ import {
 import {
   ALLOWED_SOURCES,
   FORMATS,
+  MAX_CHART_POINTS,
   MAX_COLUMNS,
   MAX_REFRESH_MS,
+  MAX_SERIES,
+  MIN_CHART_POINTS,
   MAX_SECTIONS,
   MAX_SOURCES,
   MAX_STATS,
@@ -218,12 +226,44 @@ export function validateGraph(nodes, manifest, options = {}) {
       require(isInt(node.ms) && /** @type {number} */ (node.ms) >= 0 && /** @type {number} */ (node.ms) <= MAX_DEBOUNCE_MS,
         `invalid_debounce_ms:${text(node.ms)}`, index);
     }
-    if (name === "region_sum") {
+    if (op.required.includes("r0")) {
       for (const key of ["r0", "c0", "r1", "c1"]) {
         const value = node[key];
         require(isInt(value) && /** @type {number} */ (value) >= 0 && /** @type {number} */ (value) <= MAX_REGION_INDEX,
           `invalid_region:${key}=${text(value)}`, index);
       }
+      if ("rel" in node) {
+        const rel = node.rel;
+        require(isInt(rel) && /** @type {number} */ (rel) >= 1 && /** @type {number} */ (rel) <= (REL_ROWS | REL_COLS),
+          `invalid_region_rel:${text(rel)}`, index);
+        // A percentage over 100 is not an error the device can report: it
+        // would clamp it and sweep a region the author did not mean.
+        for (const [bit, a, b] of /** @type {const} */ ([[REL_ROWS, "r0", "r1"], [REL_COLS, "c0", "c1"]])) {
+          if ((/** @type {number} */ (rel) & bit) !== 0) {
+            require(/** @type {number} */ (node[b]) <= MAX_REL_PERCENT, `invalid_region_percent:${b}=${text(node[b])}`, index);
+            require(/** @type {number} */ (node[a]) <= /** @type {number} */ (node[b]), `invalid_region:${a}>${b}`, index);
+          }
+        }
+      }
+    } else {
+      require(!("rel" in node), `unexpected_field:${name}.rel`, index);
+    }
+    if (name === "imu" || name === "mag") {
+      const fields = name === "imu" ? IMU_FIELDS : MAG_FIELDS;
+      require(fields.includes(text(node.field)), `unknown_${name}_field:${text(node.field)}`, index);
+      const cap = name === "imu" ? "read_imu" : "read_mag";
+      require(caps.has(cap), `capability_not_declared:${cap}`, index);
+    }
+    if (name === "battery") require(caps.has("power"), "capability_not_declared:power", index);
+    if (name === "linked") require(caps.has("link"), "capability_not_declared:link", index);
+    if ("persist" in node) {
+      require(name === "counter" || name === "counter_reset", `unexpected_field:${name}.persist`, index);
+      require(node.persist === 1, `invalid_persist:${text(node.persist)}`, index);
+      require(caps.has("persist"), "capability_not_declared:persist", index);
+    }
+    if ("fall" in node) {
+      require(name === "emit_value", `unexpected_field:${name}.fall`, index);
+      require(node.fall === 1, `invalid_fall:${text(node.fall)}`, index);
     }
     for (const key of ["value", "hysteresis", "lo", "hi"]) {
       if (key in node) require(typeof node[key] === "number" && Number.isFinite(node[key]), `invalid_number:${name}.${key}`, index);
@@ -242,7 +282,7 @@ export function validateGraph(nodes, manifest, options = {}) {
 
   const flowNodes = /** @type {Record<string, unknown>[]} */ (nodes);
   const declaredMinOs = text(manifest.min_os) || "v1.0.0";
-  const neededMinOs = minOsFor(flowNodes);
+  const neededMinOs = minOsFor(flowNodes, [...caps]);
   require(compareVersions(declaredMinOs, neededMinOs) >= 0,
     `min_os_too_low:declares_v${declaredMinOs.replace(/^v/, "")}_needs_v${neededMinOs.replace(/^v/, "")}`);
 
@@ -302,7 +342,25 @@ export function validateReadout(readout) {
     require(SECTION_KINDS.has(kind), `unknown_section_kind:${kind}`);
     require(text(section.title).trim(), "missing_section_title");
 
-    if (kind === "stats") {
+    if (kind === "chart") {
+      require(ids.has(text(section.source)), `unknown_source:${text(section.source)}`);
+      const series = section.series;
+      require(Array.isArray(series) && series.length > 0, "missing_series");
+      require(series.length <= MAX_SERIES, `too_many_series:${series.length}`);
+      for (const line of series) {
+        require(isObject(line), "invalid_series");
+        require(text(line.field), "missing_series_field");
+      }
+      const points = section.points ?? 60;
+      require(isInt(points) && /** @type {number} */ (points) >= MIN_CHART_POINTS && /** @type {number} */ (points) <= MAX_CHART_POINTS,
+        `invalid_chart_points:${text(points)}`);
+      for (const key of ["min", "max"]) {
+        if (key in section) require(typeof section[key] === "number" && Number.isFinite(section[key]), `invalid_chart_${key}:${text(section[key])}`);
+      }
+      if ("min" in section && "max" in section) {
+        require(/** @type {number} */ (section.max) > /** @type {number} */ (section.min), "invalid_chart_range");
+      }
+    } else if (kind === "stats") {
       const items = section.items;
       require(Array.isArray(items) && items.length > 0, "missing_stats_items");
       require(items.length <= MAX_STATS, `too_many_stats:${items.length}`);

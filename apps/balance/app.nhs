@@ -2,15 +2,18 @@
 # what added the arithmetic operators.
 app balance {
   name    "Left/Right Balance"
-  version 1.0.0
+  version 1.1.0
   author  wenzi7777
   summary "Normalised left-right load difference, -1 to +1."
   category biomechanics
   icon    scale
 }
 
-region left  = rows 0..14, cols 0..6
-region right = rows 0..14, cols 8..14
+# In percent since 1.1.0, so it fits any matrix. On a 15-column mat these are
+# columns 0-6 and 8-14, exactly as before: the middle column counts for
+# neither side.
+region left  = rows 0%..100%, cols 0%..46%
+region right = rows 0%..100%, cols 54%..100%
 
 signal left_load  = sum(left)
 signal right_load = sum(right)

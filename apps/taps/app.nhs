@@ -1,0 +1,25 @@
+# Taps and holds, for finger-tapping and press-and-hold exercises. Every
+# press anywhere on the sensor is counted; how long each one was held and how
+# long since the one before are reported as it ends.
+app taps {
+  name    "Tap Counter"
+  version 1.0.0
+  author  wenzi7777
+  summary "Counts presses and times each hold; button resets."
+  category rehab
+  icon    touch
+}
+
+event press when active(50) > 0.5 for 20ms
+
+signal taps = counter(press, button())
+signal held = peak_since(duration(press), press)
+signal rate = 60000 / interval(press)
+
+emit tap value taps on rise(press)
+emit hold_ms value held on fall(press)
+
+pixel 0 blue when press
+show 0 "Taps" taps
+show 1 "Hold ms" held
+show 2 "Per min" rate

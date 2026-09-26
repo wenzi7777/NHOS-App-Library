@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "product": "NHOS App Library",
-  "generated_at": "2026-09-23T08:46:26Z",
+  "generated_at": "2026-09-26T14:55:03Z",
   "cell_count": 225,
   "apps": [
     {
@@ -16,7 +16,7 @@
         "ja": "左右の荷重差を -1〜+1 に正規化して出力します。",
         "zh-CN": "将左右载荷差正规化为 -1 至 +1 输出。"
       },
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "wenzi7777",
       "license": "MPL-2.0",
       "category": "biomechanics",
@@ -25,19 +25,101 @@
         "read_matrix"
       ],
       "kind": "flow",
-      "min_os": "v1.1.0",
+      "min_os": "v1.6.0",
       "nodes": 9,
       "estimated_us": 140,
       "memory_bytes": 120,
       "device_path": "apps/balance.nha",
       "package": {
-        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/balance/balance-1.0.0.nha",
-        "sha256": "95af27d149e574b82db47909a456944628ae184fd7ccc453d37086ff043ffb7a",
-        "size": 648
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/balance/balance-1.1.0.nha",
+        "sha256": "4a6c3ab9bc8afa56af2f041342a754c982c6e5531c7a9c51d917c0eec801da1c",
+        "size": 669
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/balance/icon.svg",
       "readme_url": {
         "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/balance/README.md"
+      }
+    },
+    {
+      "id": "bat_view",
+      "name": {
+        "en": "Battery & Link",
+        "ja": "バッテリーと接続",
+        "zh-CN": "电量与连接"
+      },
+      "summary": {
+        "en": "Battery level, link state and time offline; low alert.",
+        "ja": "電池残量・接続状態・オフライン時間。低残量を警告。",
+        "zh-CN": "电量、连接状态与离线时长，低电量时提醒。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "diagnostics",
+      "capabilities": [
+        "display",
+        "drive_ext_led",
+        "drive_led",
+        "emit_event",
+        "link",
+        "power",
+        "read_matrix",
+        "tick"
+      ],
+      "kind": "flow",
+      "min_os": "v1.6.0",
+      "nodes": 24,
+      "estimated_us": 15,
+      "memory_bytes": 0,
+      "device_path": "apps/bat_view.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/bat_view/bat_view-1.0.0.nha",
+        "sha256": "386f80c0ed8ce8c8483a95a5c44f84a70b2bc95d03baa3060c3e8f87572fd210",
+        "size": 1172
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/bat_view/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/bat_view/README.md"
+      }
+    },
+    {
+      "id": "compass",
+      "name": {
+        "en": "Compass",
+        "ja": "コンパス",
+        "zh-CN": "指南针"
+      },
+      "summary": {
+        "en": "Heading and field strength; detects a nearby magnet.",
+        "ja": "方位と磁場強度を表示し、近くの磁石を検出します。",
+        "zh-CN": "显示方位与磁场强度，检测附近的磁铁。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "sensing",
+      "capabilities": [
+        "display",
+        "drive_ext_led",
+        "emit_event",
+        "read_mag",
+        "read_matrix",
+        "tick"
+      ],
+      "kind": "flow",
+      "min_os": "v1.6.0",
+      "nodes": 18,
+      "estimated_us": 11,
+      "memory_bytes": 0,
+      "device_path": "apps/compass.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/compass/compass-1.0.0.nha",
+        "sha256": "f84471081488520ac908e5cc2cae5a6ce88e3778169d171b9632d55d19db1411",
+        "size": 1082
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/compass/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/compass/README.md"
       }
     },
     {
@@ -77,6 +159,83 @@
       }
     },
     {
+      "id": "cop_view",
+      "name": {
+        "en": "Centre of Pressure",
+        "ja": "圧力中心",
+        "zh-CN": "压力中心"
+      },
+      "summary": {
+        "en": "Front/back and left/right load bias, with lean events.",
+        "ja": "前後・左右の荷重バイアスと傾きイベント。",
+        "zh-CN": "前后、左右载荷偏移及倾斜事件。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "biomechanics",
+      "capabilities": [
+        "display",
+        "emit_event",
+        "read_matrix"
+      ],
+      "kind": "flow",
+      "min_os": "v1.6.0",
+      "nodes": 24,
+      "estimated_us": 282,
+      "memory_bytes": 240,
+      "device_path": "apps/cop_view.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/cop_view/cop_view-1.0.0.nha",
+        "sha256": "dfdb3190d9a08a5f2402d92997810a107fc70270f15224f243108d095eece41f",
+        "size": 1357
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/cop_view/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/cop_view/README.md"
+      }
+    },
+    {
+      "id": "fall",
+      "name": {
+        "en": "Fall Detector",
+        "ja": "転倒検知",
+        "zh-CN": "跌倒检测"
+      },
+      "summary": {
+        "en": "Impact followed by stillness raises a fall alert.",
+        "ja": "衝撃の後に静止が続くと転倒として警告します。",
+        "zh-CN": "冲击后保持静止即发出跌倒警报。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "care",
+      "capabilities": [
+        "drive_ext_led",
+        "drive_led",
+        "emit_event",
+        "read_imu",
+        "read_matrix",
+        "tick"
+      ],
+      "kind": "flow",
+      "min_os": "v1.6.0",
+      "nodes": 24,
+      "estimated_us": 15,
+      "memory_bytes": 0,
+      "device_path": "apps/fall.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/fall/fall-1.0.0.nha",
+        "sha256": "2cca21467b9050067d4057ad77531ea6c5849ceeeebc6be3af3f72c0bce11cf6",
+        "size": 1089
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/fall/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/fall/README.md"
+      }
+    },
+    {
       "id": "features",
       "name": {
         "en": "Feature Extractor",
@@ -113,6 +272,43 @@
       }
     },
     {
+      "id": "gait_time",
+      "name": {
+        "en": "Gait Timing",
+        "ja": "歩行タイミング",
+        "zh-CN": "步态时间"
+      },
+      "summary": {
+        "en": "Stance time and stride time for every step.",
+        "ja": "各歩の立脚時間とストライド時間。",
+        "zh-CN": "每一步的支撑时间与步幅时间。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "biomechanics",
+      "capabilities": [
+        "display",
+        "emit_event",
+        "read_matrix"
+      ],
+      "kind": "flow",
+      "min_os": "v1.6.0",
+      "nodes": 13,
+      "estimated_us": 75,
+      "memory_bytes": 0,
+      "device_path": "apps/gait_time.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/gait_time/gait_time-1.0.0.nha",
+        "sha256": "e514ea7134ed7d656890b3b1ebbf128edbbc1275814d678a36a05c06142486f8",
+        "size": 843
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/gait_time/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/gait_time/README.md"
+      }
+    },
+    {
       "id": "heel_strike",
       "name": {
         "en": "Heel Strike",
@@ -124,7 +320,7 @@
         "ja": "マット後半部の荷重から踵接地イベントを発行します。",
         "zh-CN": "依据垫面后半部的载荷发出足跟触地事件。"
       },
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "wenzi7777",
       "license": "MPL-2.0",
       "category": "biomechanics",
@@ -133,19 +329,357 @@
         "read_matrix"
       ],
       "kind": "flow",
-      "min_os": "v1.0.0",
+      "min_os": "v1.6.0",
       "nodes": 4,
       "estimated_us": 70,
       "memory_bytes": 0,
       "device_path": "apps/heel_strike.nha",
       "package": {
-        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/heel_strike/heel_strike-1.0.0.nha",
-        "sha256": "4caa7ba99bfc814e64c55199c310c54ed26c5429bfca7004f4d4541766e164e6",
-        "size": 492
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/heel_strike/heel_strike-1.1.0.nha",
+        "sha256": "537ba278d2afdc919049c60340fa81386004a853db8b18f83f48337aad94033e",
+        "size": 503
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/heel_strike/icon.svg",
       "readme_url": {
         "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/heel_strike/README.md"
+      }
+    },
+    {
+      "id": "load_strip",
+      "name": {
+        "en": "Load Strip",
+        "ja": "荷重ストリップ",
+        "zh-CN": "载荷灯条"
+      },
+      "summary": {
+        "en": "Total load as an LED meter; contact and overload pixels.",
+        "ja": "総荷重を LED メーターで表示し、接触と過負荷を示します。",
+        "zh-CN": "以 LED 灯条显示总载荷，并提示接触与过载。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "display",
+      "capabilities": [
+        "drive_ext_led",
+        "emit_event",
+        "read_matrix"
+      ],
+      "kind": "flow",
+      "min_os": "v1.5.0",
+      "nodes": 11,
+      "estimated_us": 208,
+      "memory_bytes": 0,
+      "device_path": "apps/load_strip.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/load_strip/load_strip-1.0.0.nha",
+        "sha256": "ebe5e01168951df4e0a035950a31f93f143c20ce24985176f808b929f555a27a",
+        "size": 726
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/load_strip/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/load_strip/README.md"
+      }
+    },
+    {
+      "id": "lr_gait",
+      "name": {
+        "en": "Left/Right Symmetry",
+        "ja": "左右対称性",
+        "zh-CN": "左右对称性"
+      },
+      "summary": {
+        "en": "Left/right load share and peaks; flags lasting asymmetry.",
+        "ja": "左右の荷重比とピーク。持続する非対称を検出。",
+        "zh-CN": "左右载荷占比与峰值，提示持续的不对称。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "biomechanics",
+      "capabilities": [
+        "display",
+        "drive_ext_led",
+        "emit_event",
+        "read_matrix"
+      ],
+      "kind": "flow",
+      "min_os": "v1.6.0",
+      "nodes": 18,
+      "estimated_us": 279,
+      "memory_bytes": 240,
+      "device_path": "apps/lr_gait.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/lr_gait/lr_gait-1.0.0.nha",
+        "sha256": "4e0a1de2dcf878c1a54e7339defdf18b751b2106dee36eb160206406560897cc",
+        "size": 1124
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/lr_gait/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/lr_gait/README.md"
+      }
+    },
+    {
+      "id": "mark",
+      "name": {
+        "en": "Experiment Marker",
+        "ja": "実験マーカー",
+        "zh-CN": "实验标记"
+      },
+      "summary": {
+        "en": "Button press records a numbered mark in the event log.",
+        "ja": "ボタンを押すと番号付きマークをイベントログに記録します。",
+        "zh-CN": "按下按钮即在事件日志中记录带编号的标记。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "research",
+      "capabilities": [
+        "button",
+        "display",
+        "emit_event",
+        "read_matrix"
+      ],
+      "kind": "flow",
+      "min_os": "v1.6.0",
+      "nodes": 11,
+      "estimated_us": 7,
+      "memory_bytes": 0,
+      "device_path": "apps/mark.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/mark/mark-1.0.0.nha",
+        "sha256": "c3a1a0ebbac7aa17ce3c2d0db12404d1f875fc07d6722c00cc6e430d4098144a",
+        "size": 669
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/mark/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/mark/README.md"
+      }
+    },
+    {
+      "id": "mat_view",
+      "name": {
+        "en": "Mat View",
+        "ja": "マットビュー",
+        "zh-CN": "垫面视图"
+      },
+      "summary": {
+        "en": "Front/rear load on the OLED; press the button for page 2.",
+        "ja": "前後の荷重を OLED に表示。ボタンで 2 ページ目へ。",
+        "zh-CN": "在 OLED 显示前后载荷，按按钮切换到第 2 页。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "display",
+      "capabilities": [
+        "button",
+        "display",
+        "read_matrix"
+      ],
+      "kind": "flow",
+      "min_os": "v1.6.0",
+      "nodes": 23,
+      "estimated_us": 349,
+      "memory_bytes": 0,
+      "device_path": "apps/mat_view.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/mat_view/mat_view-1.0.0.nha",
+        "sha256": "69d98419cb63a4a0771661b85243d806e83ae0b0bd699066323645675799f720",
+        "size": 1176
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/mat_view/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/mat_view/README.md"
+      }
+    },
+    {
+      "id": "sat_watch",
+      "name": {
+        "en": "Saturation Watch",
+        "ja": "飽和ウォッチ",
+        "zh-CN": "饱和监看"
+      },
+      "summary": {
+        "en": "Flags cells reading at the readout ceiling while it happens.",
+        "ja": "読み出し回路の上限に張り付いたセルをその場で知らせます。",
+        "zh-CN": "实时提示读数达到读出电路上限的单元。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "research",
+      "capabilities": [
+        "display",
+        "drive_ext_led",
+        "drive_led",
+        "emit_event",
+        "read_matrix"
+      ],
+      "kind": "flow",
+      "min_os": "v1.6.0",
+      "nodes": 16,
+      "estimated_us": 144,
+      "memory_bytes": 0,
+      "device_path": "apps/sat_watch.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/sat_watch/sat_watch-1.0.0.nha",
+        "sha256": "020a7974c03791f0b7ab520e6e010b2751e8e0b53919e7af5ef43bca9ba3be4f",
+        "size": 987
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sat_watch/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sat_watch/README.md"
+      }
+    },
+    {
+      "id": "sensors",
+      "name": {
+        "en": "Sensor Scope",
+        "ja": "センサースコープ",
+        "zh-CN": "传感器示波器"
+      },
+      "summary": {
+        "en": "Live IMU, magnetometer and battery readings, charted.",
+        "ja": "IMU・磁気センサー・電池の値をリアルタイムにグラフ表示。",
+        "zh-CN": "实时图表显示 IMU、磁力计与电池读数。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "diagnostics",
+      "capabilities": [],
+      "kind": "readout",
+      "min_os": "v1.6.0",
+      "nodes": 0,
+      "estimated_us": 0,
+      "memory_bytes": 0,
+      "device_path": "apps/sensors.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/sensors/sensors-1.0.0.nha",
+        "sha256": "25aa651baf42496053b71fed848b68a8aaa5939f46ce7e87cf0954694df1da1f",
+        "size": 1499
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sensors/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sensors/README.md"
+      }
+    },
+    {
+      "id": "step_peak",
+      "name": {
+        "en": "Step Peak",
+        "ja": "ステップピーク",
+        "zh-CN": "单步峰值"
+      },
+      "summary": {
+        "en": "Peak cell and peak load of every step, as it ends.",
+        "ja": "各歩のピークセル値とピーク荷重を歩の終わりに出力。",
+        "zh-CN": "在每一步结束时输出峰值单元与峰值载荷。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "biomechanics",
+      "capabilities": [
+        "display",
+        "emit_event",
+        "read_matrix"
+      ],
+      "kind": "flow",
+      "min_os": "v1.6.0",
+      "nodes": 12,
+      "estimated_us": 141,
+      "memory_bytes": 0,
+      "device_path": "apps/step_peak.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/step_peak/step_peak-1.0.0.nha",
+        "sha256": "009ebb366e0ac925b95670b31fb97ad7661df6dde2ff253b670b0b376be2d47a",
+        "size": 832
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/step_peak/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/step_peak/README.md"
+      }
+    },
+    {
+      "id": "steps",
+      "name": {
+        "en": "Step Counter",
+        "ja": "歩数計",
+        "zh-CN": "计步器"
+      },
+      "summary": {
+        "en": "Counts heel strikes; kept across reboots, button resets.",
+        "ja": "かかとの接地を数えます。再起動後も保持、ボタンでリセット。",
+        "zh-CN": "统计脚跟着地次数，重启后保留，按按钮清零。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "biomechanics",
+      "capabilities": [
+        "button",
+        "display",
+        "drive_led",
+        "emit_event",
+        "persist",
+        "read_matrix"
+      ],
+      "kind": "flow",
+      "min_os": "v1.6.0",
+      "nodes": 13,
+      "estimated_us": 75,
+      "memory_bytes": 0,
+      "device_path": "apps/steps.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/steps/steps-1.0.0.nha",
+        "sha256": "868839f5408b679393c1dc7ff3094f7b1d82d3d5de420b9bcc01a3c81e7a4ecb",
+        "size": 865
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/steps/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/steps/README.md"
+      }
+    },
+    {
+      "id": "sustain",
+      "name": {
+        "en": "Sustained Load",
+        "ja": "持続荷重",
+        "zh-CN": "持续受压"
+      },
+      "summary": {
+        "en": "Times continuous loading; alerts after 20 minutes.",
+        "ja": "連続荷重の時間を計測し、20 分で警告します。",
+        "zh-CN": "计时持续受压，超过 20 分钟发出提醒。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "care",
+      "capabilities": [
+        "display",
+        "drive_ext_led",
+        "drive_led",
+        "emit_event",
+        "read_matrix"
+      ],
+      "kind": "flow",
+      "min_os": "v1.6.0",
+      "nodes": 18,
+      "estimated_us": 78,
+      "memory_bytes": 0,
+      "device_path": "apps/sustain.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/sustain/sustain-1.0.0.nha",
+        "sha256": "a5feea2fe729a7f33ac083d1cd6dcff320022a3dd014a927a46aac86d58e9f50",
+        "size": 1038
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sustain/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sustain/README.md"
       }
     },
     {
@@ -177,6 +711,86 @@
         "size": 3237
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sysmon/icon.svg"
+    },
+    {
+      "id": "taps",
+      "name": {
+        "en": "Tap Counter",
+        "ja": "タップカウンター",
+        "zh-CN": "点按计数"
+      },
+      "summary": {
+        "en": "Counts presses and times each hold; button resets.",
+        "ja": "押下回数を数え、各押下の保持時間を計測。ボタンでリセット。",
+        "zh-CN": "统计按压次数并记录每次按住时长，按按钮清零。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "rehab",
+      "capabilities": [
+        "button",
+        "display",
+        "drive_ext_led",
+        "emit_event",
+        "read_matrix"
+      ],
+      "kind": "flow",
+      "min_os": "v1.6.0",
+      "nodes": 17,
+      "estimated_us": 78,
+      "memory_bytes": 0,
+      "device_path": "apps/taps.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/taps/taps-1.0.0.nha",
+        "sha256": "11b62ac972a26db4d6a5f888484a3214e270b3a7650f04975005e0979618368a",
+        "size": 964
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/taps/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/taps/README.md"
+      }
+    },
+    {
+      "id": "tilt",
+      "name": {
+        "en": "Tilt Alarm",
+        "ja": "傾きアラーム",
+        "zh-CN": "倾斜警报"
+      },
+      "summary": {
+        "en": "Pitch and roll from the IMU; alerts on a lasting lean.",
+        "ja": "IMU のピッチ・ロールを表示し、傾きが続くと警告。",
+        "zh-CN": "显示 IMU 俯仰与横滚角，持续倾斜时发出警报。"
+      },
+      "version": "1.0.0",
+      "author": "wenzi7777",
+      "license": "MPL-2.0",
+      "category": "care",
+      "capabilities": [
+        "display",
+        "drive_ext_led",
+        "drive_led",
+        "emit_event",
+        "read_imu",
+        "read_matrix",
+        "tick"
+      ],
+      "kind": "flow",
+      "min_os": "v1.6.0",
+      "nodes": 16,
+      "estimated_us": 10,
+      "memory_bytes": 0,
+      "device_path": "apps/tilt.nha",
+      "package": {
+        "url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/dist/tilt/tilt-1.0.0.nha",
+        "sha256": "327929e64013d16ce37e3fdf23732fc1feecfdbbd64fdc498d652f5b26878325",
+        "size": 969
+      },
+      "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/tilt/icon.svg",
+      "readme_url": {
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/tilt/README.md"
+      }
     }
   ]
 }

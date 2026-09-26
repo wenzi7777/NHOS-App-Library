@@ -1,0 +1,32 @@
+# Cells reading at the readout circuit's ceiling. A clipped cell reports the
+# ceiling, not the pressure on it, so every frame it is clipped is data that
+# cannot be recovered afterwards -- this says so while there is still time to
+# unload the sensor or change the feedback resistor.
+#
+# 1050 suits Rfb = 8.2 kOhm, whose ceiling is about 1110 uS. Set it a little
+# under your own circuit's ceiling.
+app sat_watch {
+  name    "Saturation Watch"
+  version 1.0.0
+  author  wenzi7777
+  summary "Flags cells reading at the readout ceiling while it happens."
+  category research
+  icon    alert
+}
+
+signal clipped = active(1050)
+event clipping when clipped > 0.5 for 50ms
+signal episodes = counter(clipping)
+
+# Reported when an episode ends: how many cells it reached, and how long.
+signal worst = peak_since(clipped, clipping)
+signal length = peak_since(duration(clipping), clipping)
+emit clip_cells value worst on fall(clipping)
+emit clip_ms value length on fall(clipping)
+
+led red when clipping
+pixel 8 red when clipping
+
+show 0 "Clipped" clipped
+show 1 "Peak" peak()
+show 2 "Episodes" episodes

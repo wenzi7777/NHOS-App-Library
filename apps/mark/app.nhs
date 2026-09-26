@@ -1,0 +1,26 @@
+# Numbered markers for an experiment log. Each short press of the action button
+# records `mark` carrying its number, which lands in the recording's
+# .events.csv beside the frame it happened on -- so "step 3 started here" no
+# longer needs a stopwatch and a notebook.
+app mark {
+  name    "Experiment Marker"
+  version 1.0.0
+  author  wenzi7777
+  summary "Button press records a numbered mark in the event log."
+  category research
+  icon    flag
+}
+
+# A boolean signal, not an event: an event would also log press rise/fall.
+signal press = button()
+signal marks = counter(press)
+emit mark value marks on rise(press)
+
+# Seconds since the last mark (or since the app started). peak_since restarts
+# from its input on each press and then keeps the largest value -- and
+# -uptime only falls, so it holds -(uptime at the press).
+signal marked_at = 0 - peak_since(0 - uptime(), press)
+signal since = uptime() - marked_at
+
+show 0 "Mark" marks
+show 1 "Since s" since digits 1

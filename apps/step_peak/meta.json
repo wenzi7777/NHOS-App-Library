@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Step Peak",
+    "ja": "ステップピーク",
+    "zh-CN": "单步峰值"
+  },
+  "summary": {
+    "en": "Peak cell and peak load of every step, as it ends.",
+    "ja": "各歩のピークセル値とピーク荷重を歩の終わりに出力。",
+    "zh-CN": "在每一步结束时输出峰值单元与峰值载荷。"
+  },
+  "license": "MPL-2.0"
+}

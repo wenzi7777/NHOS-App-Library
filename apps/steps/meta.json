@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Step Counter",
+    "ja": "歩数計",
+    "zh-CN": "计步器"
+  },
+  "summary": {
+    "en": "Counts heel strikes; kept across reboots, button resets.",
+    "ja": "かかとの接地を数えます。再起動後も保持、ボタンでリセット。",
+    "zh-CN": "统计脚跟着地次数，重启后保留，按按钮清零。"
+  },
+  "license": "MPL-2.0"
+}

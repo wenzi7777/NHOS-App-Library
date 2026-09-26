@@ -19,6 +19,10 @@ import { pythonFloatRepr } from "./canonical.mjs";
 const PRESSURE_COLUMN = /^P(\d+)$/i;
 
 export const EVENT_COLUMNS = Object.freeze(["seq", "frame_seq", "timestamp_ms", "app", "event", "edge", "value"]);
+/** Recording columns imu() reads, in its order: g, then deg/s. */
+export const IMU_COLUMNS = Object.freeze(["Acc_x", "Acc_y", "Acc_z", "Gyro_x", "Gyro_y", "Gyro_z"]);
+/** Recording columns mag() reads, in microtesla. */
+export const MAG_COLUMNS = Object.freeze(["Mag_x", "Mag_y", "Mag_z"]);
 
 /**
  * RFC 4180 rows: quoted fields, doubled quotes, CRLF or LF.
@@ -109,14 +113,28 @@ export function parseSamplesCsv(text, shape = {}) {
     : header.findIndex((name) => name.trim().toLowerCase() === "timestamp");
   const seqIndex = header.indexOf("frame_seq");
   const { rows, cols } = inferShape(pressure.length, shape.rows, shape.cols);
+  // The IMU and magnetometer columns the Desktop writes beside the matrix,
+  // in the order imu() and mag() read them. Absent in old recordings.
+  const columnsOf = (/** @type {string[]} */ names) => {
+    const indices = names.map((name) => header.indexOf(name));
+    return indices.every((index) => index >= 0) ? indices : null;
+  };
+  const imuColumns = columnsOf(IMU_COLUMNS);
+  const magColumns = columnsOf(MAG_COLUMNS);
 
-  return body.map((row, index) => ({
-    seq: seqIndex >= 0 ? Math.trunc(toNumber(row[seqIndex])) : index,
-    timestampMs: Math.trunc(toNumber(tsIndex >= 0 ? row[tsIndex] : undefined)),
-    values: Float32Array.from(pressure, (column) => toNumber(row[column])),
-    rows,
-    cols,
-  }));
+  return body.map((row, index) => {
+    /** @type {import("./simulate.mjs").Frame} */
+    const frame = {
+      seq: seqIndex >= 0 ? Math.trunc(toNumber(row[seqIndex])) : index,
+      timestampMs: Math.trunc(toNumber(tsIndex >= 0 ? row[tsIndex] : undefined)),
+      values: Float32Array.from(pressure, (column) => toNumber(row[column])),
+      rows,
+      cols,
+    };
+    if (imuColumns) frame.imu = Float32Array.from(imuColumns, (column) => toNumber(row[column]));
+    if (magColumns) frame.mag = Float32Array.from(magColumns, (column) => toNumber(row[column]));
+    return frame;
+  });
 }
 
 /**

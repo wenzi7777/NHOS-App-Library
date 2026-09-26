@@ -1,0 +1,32 @@
+# Front and rear load on the OLED; a press of the action button turns to a
+# second page. The halves are percentages, so the same package splits a
+# 15x15 mat and a 5x7 sensor.
+app mat_view {
+  name    "Mat View"
+  version 1.0.0
+  author  wenzi7777
+  summary "Front/rear load on the OLED; press the button for page 2."
+  category display
+  icon    screen
+}
+
+region rear  = rows 50%..100%, cols 0%..100%
+region front = rows 0%..50%, cols 0%..100%
+
+signal rear_load  = sum(rear)
+signal front_load = sum(front)
+
+# Each press advances the page; % 2 wraps it back to the first.
+signal page = counter(button()) % 2
+
+gate (page < 0.5) {
+  show 0 "Front" front_load
+  show 1 "Rear" rear_load
+  bar  2 "Rear %" rear_load / (rear_load + front_load) range 0..1
+}
+
+gate (page > 0.5) {
+  show 0 "Peak" peak()
+  show 1 "Cells" active(50)
+  show 2 "CoP row" row_centroid() digits 1
+}

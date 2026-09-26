@@ -41,24 +41,32 @@ app <id> {
   summary "One line, 63 characters."
   category biomechanics        # optional
   icon     foot                # optional, a symbolic name
+  background yes               # optional: keep running without frames (v1.6.0)
 }
 
 region <name> = rows <a>..<b>, cols <c>..<d>
+region <name> = rows <a>%..<b>%, cols <c>%..<d>%     # percent of the matrix (v1.6.0)
 
-signal <name> = <expression>
+signal <name> = <expression> [persist]
 
 event  <name> when <expression> <cmp> <number> [hyst <number>] [for <n>ms]
-emit   <name> value <expression> on rise(<event>)
-led    <colour> when <event>
+event  <name> when <boolean> [for <n>ms]
+emit   <name> value <expression> on rise(<trigger>)
+emit   <name> value <expression> on fall(<trigger>)
+led    <colour> when <trigger>
 show   <row> "<label>" <expression> [digits <n>]
 bar    <row> "<label>" <expression> range <lo>..<hi>
-pixel  <index> <colour> when <event>
+pixel  <index> <colour> when <trigger>
 meter  <expression> range <lo>..<hi>
 
-gate (<expression> <cmp> <number> ...) {
+gate (<condition>) {
   signal / event / emit / led / show / bar / pixel / meter statements
 }
 ```
+
+A `<trigger>` is an event, or a signal that is a boolean (`signal press =
+button()`). A `<boolean>` is an event, `not(...)`, `button()` or `linked()`.
+A `<condition>` is either form of `event`'s `when`.
 
 `show` and `bar` draw on the OLED; see [The OLED and the button](#the-oled-and-the-button).
 `pixel` and `meter` drive the external LED strip; see [The external LED strip](#the-external-led-strip).
@@ -85,6 +93,28 @@ previously declared signals, and:
 | `min(a, b)`, `max(a, b)`, `clamp(x, lo, hi)` | |
 | `budget_load()`, `grace_left()` | this app's current pressure |
 | `button()` | true for one frame per short press of the action button |
+| `not(b)` | a boolean's negation (v1.6.0) |
+| `select(b, x, y)` | `x` while `b` holds, else `y` |
+| `counter(b, reset)` | rises of `b`, zeroed by each rise of `reset` (v1.6.0) |
+| `duration(b)`, `interval(b)` | ms `b` has held; ms between its last two rises (v1.6.0) |
+| `peak_since(x, b)` | largest `x` since `b` last rose (v1.6.0) |
+| `sqrt(x)`, `atan2(y, x)` | square root; angle in degrees (v1.6.0) |
+| `peak(region)`, `active(region, level)` | the sweeps over one region (v1.6.0) |
+| `row_centroid(region)`, `col_centroid(region)` | centre of pressure within a region, in whole-matrix coordinates (v1.6.0) |
+| `imu(field)`, `mag(field)` | the IMU and the magnetometer (v1.6.0; see [The other sensors](#the-other-sensors)) |
+| `battery()`, `linked()`, `uptime()` | charge in percent (-1 without a gauge), whether streaming has a destination, seconds since boot (v1.6.0) |
+
+**An event's name is also a value**: its boolean, 1 while it holds and 0 when
+it does not. `counter(strike)`, `duration(strike)` and `select(strike, 1, 0)`
+all read it. The functions that take a boolean -- `counter`, `not`,
+`duration`, `interval`, `select`'s condition, `peak_since`'s reset -- refuse
+a number: `counter(heel_load)` would count nothing, forever, because
+arithmetic has no boolean.
+
+An event's comparison may use a negative number (`when bias < -0.3`), and a
+negative literal anywhere is a single constant. Note that `>` is really `>=`
+(the threshold latches at its value), so compare against a small margin
+rather than exactly 0 when a value can rest on the limit.
 
 `%` is C's `fmodf` (the result takes the sign of the left side) and, like
 `/`, gives 0 rather than NaN for a zero divisor. It exists for paging:
@@ -100,7 +130,9 @@ so when it happens.
 
 `capabilities` and `min_os` are **derived** from the ops used (and, for
 `min_os`, from the graph's size: more than 12 nodes needs v1.3.0; `show`, `bar`,
-`button()` and `%` need v1.4.0). `read_matrix` is always among them, even for a
+`button()` and `%` need v1.4.0; anything marked v1.6.0 above, a percent region,
+`persist`, `on fall` or `background yes` needs v1.6.0 -- an older device would
+accept some of these and silently ignore them, which is worse than refusing). `read_matrix` is always among them, even for a
 graph that never reads the matrix: the frame is what drives evaluation, and a
 graph that may not read it is never woken. Do not declare
 them — a hand-written `min_os` that is too low passes here and then fails on the
@@ -125,6 +157,9 @@ device as `unknown_op`.
 | Decimals | 0 to 3 | `kMaxOledDigits` |
 | Presses waiting | 3 | `FlowApp::kMaxPendingPresses` |
 | External pixel | 0 to 8 | `kMaxAppExtLeds`; v1.5.F has 9 pixels, v1.0.F 3 |
+| Region percent | 0 to 100 | `kMaxRegionPercent` |
+| Background rate | 10 Hz, after 250 ms without a frame | the apps tick, `FlowApp::kTickFallbackMs` |
+| Persisted write | at most every 30 s | `FlowApp::kPersistIntervalMs` |
 
 The window pool is the one that catches people out: two `mean(x, 100)` are
 each within the window limit, but together need 200 floats from a pool of 128,
@@ -304,6 +339,81 @@ the strip stays off, and the brightness setting scales every colour. With
 several apps running, the meter comes from the lowest-numbered slot that has
 one and each pixel from the lowest-numbered slot that lit it.
 
+## Time without windows
+
+`mean`, `max_hold` and `integrate` keep a ring buffer, so they are limited to
+128 frames -- about two seconds -- and to the pool. The v1.6.0 time functions
+keep a timestamp instead, so they cost nothing from the pool and have no such
+limit:
+
+```
+event loaded when total() > 300 for 30000ms
+signal minutes = duration(loaded) / 60000        # half an hour is fine
+event overdue when minutes > 20
+
+event strike when sum(heel) > 300 hyst 100 for 30ms
+signal cadence = 60000 / interval(strike)        # steps a minute
+signal step_peak = peak_since(sum(heel), strike) # restarts on every strike
+emit step_peak value step_peak on fall(strike)   # reported as the step ends
+```
+
+`on fall(...)` fires once, when the trigger stops holding -- not at start-up,
+the way the rise of `not(...)` would.
+
+## Regions in percent
+
+`rows 50%..100%` is resolved against each frame's own matrix, so one package
+covers a 15x15 mat and a 5x7 sensor alike. The first row is `floor(a% of
+rows)` and the last `ceil(b% of rows) - 1`, never empty: on an odd count, a
+row a boundary splits belongs to both sides, which keeps a left/right split
+symmetric. Rows and columns may use different units; the two ends of one
+range may not. An absolute region compiles exactly as it always has.
+
+## The other sensors
+
+| Call | Reads | Unit | Capability |
+|---|---|---|---|
+| `imu(ax)`, `imu(ay)`, `imu(az)` | acceleration | g | `read_imu` |
+| `imu(gx)`, `imu(gy)`, `imu(gz)` | rotation | deg/s | `read_imu` |
+| `imu(acc_mag)`, `imu(gyro_mag)` | their magnitudes | g, deg/s | `read_imu` |
+| `imu(pitch)`, `imu(roll)` | tilt from gravity, in the board's axes | degrees | `read_imu` |
+| `mag(mx)`, `mag(my)`, `mag(mz)`, `mag(strength)` | magnetic field | microtesla | `read_mag` |
+| `mag(heading)` | its angle in the board's x-y plane, 0-360 | degrees | `read_mag` |
+| `battery()` | fuel gauge charge, -1 without a reading | percent | `power` |
+| `linked()` | a Gateway or Hub to stream to | boolean | `link` |
+
+Each reads the sample streamed with the frame -- what a recording of it
+holds, and what the simulator replays from its `Acc_*`, `Gyro_*` and `Mag_*`
+columns -- and holds its last value when a frame carries none. A board without
+the sensor reads 0. `pitch`/`roll` are tilt only while the board is not
+accelerating, and `heading` is not tilt-compensated: a compass only while the
+board lies flat.
+
+## Running in the background
+
+A graph is evaluated when a frame arrives, so it stops when the scanner does
+-- when nothing is streaming, for instance. `background yes` adds the device's
+10 Hz tick: while no frame has arrived for 250 ms the graph is evaluated on
+each tick instead, with every matrix read holding its last value and `imu`,
+`mag`, `battery` and `linked` reading the latest samples. It is never
+evaluated twice for one frame.
+
+`duration` and `interval` are timed in milliseconds either way, but a window
+counts evaluations, so `mean(x, 30)` spans half a second while streaming and
+three seconds in the background.
+
+## Persisted counters
+
+```
+signal steps = counter(strike, button()) persist
+```
+
+A `persist` counter survives a reboot: the device writes it to NVS -- at most
+every 30 seconds, from outside the app's time allocation, and when the
+package is deactivated -- and restores it when the package is bound again. A
+new version of the package, or uninstalling it, starts from zero; so does
+`counter`'s reset input. Only a counter can persist.
+
 ## Testing without a device
 
 The Desktop app's SDK page replays a recording, or a live device's stream,
@@ -314,6 +424,11 @@ line, `simulate` does the same against a recorded sample CSV:
 node sdk/bin/nhos.mjs simulate apps/heel_strike/app.nhs session.csv \
     --rows 15 --cols 15 --events simulated.events.csv --compare session.events.csv
 ```
+
+A recording's `Acc_*`, `Gyro_*` and `Mag_*` columns feed `imu()` and `mag()`.
+From code, `Simulator.setBattery()` / `setLinked()` set what `battery()` and
+`linked()` read, `tick(ms)` runs the background tick, and `persisted()` /
+the `restore` option carry persisted counters across a simulated reboot.
 
 It prints an event timeline, the OLED as the last frame left it, and, with
 `--events`, writes the **same

@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Fall Detector",
+    "ja": "転倒検知",
+    "zh-CN": "跌倒检测"
+  },
+  "summary": {
+    "en": "Impact followed by stillness raises a fall alert.",
+    "ja": "衝撃の後に静止が続くと転倒として警告します。",
+    "zh-CN": "冲击后保持静止即发出跌倒警报。"
+  },
+  "license": "MPL-2.0"
+}

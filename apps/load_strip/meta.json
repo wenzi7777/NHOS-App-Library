@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Load Strip",
+    "ja": "荷重ストリップ",
+    "zh-CN": "载荷灯条"
+  },
+  "summary": {
+    "en": "Total load as an LED meter; contact and overload pixels.",
+    "ja": "総荷重を LED メーターで表示し、接触と過負荷を示します。",
+    "zh-CN": "以 LED 灯条显示总载荷，并提示接触与过载。"
+  },
+  "license": "MPL-2.0"
+}

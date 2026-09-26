@@ -87,6 +87,12 @@ operators, the package registry and multiple app slots.
 the action button (see [the OLED and the button](docs/authoring.md#the-oled-and-the-button)).
 `pixel` and `meter` need **v1.5.0**, which added the external LED strip (see
 [the external LED strip](docs/authoring.md#the-external-led-strip)).
+**v1.6.0** added events as values, time without windows (`duration`,
+`interval`, `peak_since`, `counter` with a reset, `on fall`), regions in
+percent, sweeps over a region, the IMU, the magnetometer, the battery and the
+link (`imu`, `mag`, `battery`, `linked`), background running and persisted
+counters -- see [the authoring guide](docs/authoring.md#time-without-windows).
+It also added the `sensor_sample` command and the `chart` widget for readouts.
 
 ## Integrity
 

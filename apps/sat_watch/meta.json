@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Saturation Watch",
+    "ja": "飽和ウォッチ",
+    "zh-CN": "饱和监看"
+  },
+  "summary": {
+    "en": "Flags cells reading at the readout ceiling while it happens.",
+    "ja": "読み出し回路の上限に張り付いたセルをその場で知らせます。",
+    "zh-CN": "实时提示读数达到读出电路上限的单元。"
+  },
+  "license": "MPL-2.0"
+}

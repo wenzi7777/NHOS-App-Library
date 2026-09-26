@@ -38,6 +38,24 @@ export const MAX_PENDING_PRESSES: number;
 export const OLED_LABEL_RE: RegExp;
 /** the most external LED pixels any board has; a pixel past a board's own count is never shown */
 export const MAX_EXT_LEDS: number;
+/** v1.6.0: the oldest firmware that honours each capability (it would otherwise be silently ignored) */
+export const CAPABILITY_SINCE: Readonly<Record<string, string>>;
+/** v1.6.0: the oldest firmware that honours each optional node field */
+export const FIELD_SINCE: Readonly<Record<string, string>>;
+/** `rel` bit: a region's rows are percentages */
+export const REL_ROWS: number;
+/** `rel` bit: a region's columns are percentages */
+export const REL_COLS: number;
+export const MAX_REL_PERCENT: number;
+/** imu(field) names, in firmware order */
+export const IMU_FIELDS: readonly string[];
+/** mag(field) names, in firmware order */
+export const MAG_FIELDS: readonly string[];
+/** a background graph runs on ticks only after this long without a frame */
+export const TICK_FALLBACK_MS: number;
+export const TICK_PERIOD_MS: number;
+/** a persisted counter is written at most this often */
+export const PERSIST_INTERVAL_MS: number;
 
 export interface OpSpec {
   readonly name: string;
@@ -65,7 +83,7 @@ export function graphCostUs(nodes: ReadonlyArray<{ op?: unknown }>, cellCount: n
 export function graphMemoryBytes(nodes: ReadonlyArray<Record<string, unknown>>): number;
 export function windowFloats(nodes: ReadonlyArray<Record<string, unknown>>): number;
 export function appShareUs(fps: number, runningApps: number): number;
-export function minOsFor(nodes: ReadonlyArray<{ op?: unknown }>): string;
+export function minOsFor(nodes: ReadonlyArray<Record<string, unknown>>, capabilities?: readonly unknown[]): string;
 export function capabilitiesMask(names: readonly string[]): number;
 export function compareVersions(a: string, b: string): number;
 
@@ -77,6 +95,9 @@ export namespace readoutset {
   const MAX_SECTIONS: number;
   const MAX_COLUMNS: number;
   const MAX_STATS: number;
+  const MAX_SERIES: number;
+  const MIN_CHART_POINTS: number;
+  const MAX_CHART_POINTS: number;
   const MIN_REFRESH_MS: number;
   const MAX_REFRESH_MS: number;
 }
@@ -150,6 +171,8 @@ export const LANGUAGE: {
   readonly headerFields: readonly string[];
   readonly functions: readonly string[];
   readonly featureFields: readonly string[];
+  readonly imuFields: readonly string[];
+  readonly magFields: readonly string[];
   readonly colours: readonly string[];
 };
 
@@ -158,6 +181,8 @@ export interface Region {
   c0: number;
   r1: number;
   c1: number;
+  /** REL_ROWS / REL_COLS bits: which bounds are percentages (0 for an absolute region) */
+  rel: number;
   line: number;
 }
 
@@ -246,6 +271,14 @@ export interface Frame {
   values: ArrayLike<number>;
   rows: number;
   cols: number;
+  /** ax, ay, az (g), gx, gy, gz (deg/s) */
+  imu?: ArrayLike<number>;
+  /** mx, my, mz (microtesla) */
+  mag?: ArrayLike<number>;
+  /** battery percent for this frame, overriding setBattery() */
+  battery?: number;
+  /** link state for this frame, overriding setLinked() */
+  linked?: boolean;
 }
 
 export interface SimEvent {
@@ -296,7 +329,7 @@ export interface NodeValue {
 }
 
 export class Simulator {
-  constructor(pkg: Record<string, any>, options?: { appName?: string });
+  constructor(pkg: Record<string, any>, options?: { appName?: string; restore?: Record<number, number> });
   readonly nodes: FlowNode[];
   readonly appName: string;
   readonly canEmit: boolean;
@@ -312,6 +345,8 @@ export class Simulator {
   readonly led: readonly [number, number, number];
   readonly features: Record<string, number>;
   readonly frames: number;
+  /** evaluations the background tick drove */
+  readonly ticks: number;
   readonly degraded: boolean;
   readonly degradations: number;
   budgetLoad: number;
@@ -326,6 +361,14 @@ export class Simulator {
   nodeValues(): NodeValue[];
   /** a short press of the action button, true for one frame, then false for one */
   pressButton(): void;
+  /** what battery() reads from now on: percent, or -1 for no gauge reading */
+  setBattery(percent: number): void;
+  /** what linked() reads from now on */
+  setLinked(linked: boolean): void;
+  /** the device's 10 Hz tick: evaluates a `tick` graph only while frames are absent */
+  tick(nowMs: number, sensors?: { imu?: ArrayLike<number>; mag?: ArrayLike<number>; battery?: number; linked?: boolean }): SimEvent[];
+  /** persisted counters by node index, as the device writes them to NVS */
+  persisted(): Record<number, number>;
   /** the OLED rows the last frame drew, null where it drew nothing */
   oledRows(): (OledRow | null)[];
   /** what the last frame put on the external strip, null without `drive_ext_led` */
@@ -353,6 +396,10 @@ export function simulate(pkg: Record<string, any>, frames: Iterable<Frame>, opti
 // --- recordings ----------------------------------------------------------------
 
 export const EVENT_COLUMNS: readonly string[];
+/** recording columns imu() reads */
+export const IMU_COLUMNS: readonly string[];
+/** recording columns mag() reads */
+export const MAG_COLUMNS: readonly string[];
 export function parseCsvRows(text: string): string[][];
 export function inferShape(count: number, rows?: number, cols?: number): { rows: number; cols: number };
 export function parseSamplesCsv(text: string, shape?: { rows?: number; cols?: number }): Frame[];

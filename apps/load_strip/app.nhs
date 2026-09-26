@@ -1,0 +1,19 @@
+# Total load as a meter along the external LED strip, with the first pixel
+# lit on contact and the last on a near-full-scale cell. Needs no OLED and no
+# Desktop: a glance at the strip says whether the sensor is loaded, and how
+# much.
+app load_strip {
+  name    "Load Strip"
+  version 1.0.0
+  author  wenzi7777
+  summary "Total load as an LED meter; contact and overload pixels."
+  category display
+  icon    bars
+}
+
+event touch    when active(50) > 0.5 for 30ms
+event overload when peak() > 1800
+
+meter total() range 0..20000
+pixel 0 blue when touch
+pixel 8 red  when overload

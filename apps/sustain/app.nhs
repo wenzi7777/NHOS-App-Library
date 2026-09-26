@@ -1,0 +1,30 @@
+# A reminder to shift weight. Sustained load on the same place is how
+# pressure injuries start; this times continuous loading and asks for a
+# change once it passes 20 minutes.
+#
+# The 30 s debounce works both ways: loading counts after 30 s, and a shift
+# resets the clock only if the load is really off for 30 s -- fidgeting does
+# not.
+app sustain {
+  name    "Sustained Load"
+  version 1.0.0
+  author  wenzi7777
+  summary "Times continuous loading; alerts after 20 minutes."
+  category care
+  icon    timer
+}
+
+event loaded when total() > 300 for 30000ms
+
+signal minutes = duration(loaded) / 60000
+event overdue when minutes > 20
+
+signal alerts = counter(overdue)
+emit relieve value minutes on rise(overdue)
+emit loaded_min value peak_since(minutes, loaded) on fall(loaded)
+
+led red when overdue
+pixel 0 green when loaded
+pixel 8 red when overdue
+show 0 "Loaded m" minutes digits 1
+show 1 "Alerts" alerts

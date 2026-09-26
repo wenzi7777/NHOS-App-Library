@@ -34,17 +34,33 @@
  *   package without `drive_ext_led` holds nothing. `extLedFrame()` returns
  *   the state and `extLeds(count)` the strip as a board of `count` pixels
  *   shows it, via extled.mjs.
+ * - `imu` and `mag` read the frame's `imu` / `mag` sample, and hold their last
+ *   value when a frame has none or the package lacks read_imu / read_mag.
+ *   `battery` reads -1 without `power`, `linked` false without `link`, as the
+ *   device strips them. `setBattery()` / `setLinked()` set what they read.
+ * - `tick(nowMs)` is the device's 10 Hz tick: a package with `tick` is
+ *   evaluated on it only while no frame has arrived for TICK_FALLBACK_MS, and
+ *   every matrix read then holds its last value.
+ * - Counters marked `persist` are what `persisted()` returns and what the
+ *   `restore` option seeds, as the device's NVS would across a reboot.
  */
 
 import {
   FEATURE_FIELDS,
+  IMU_FIELDS,
   LED_COLOURS,
+  MAG_FIELDS,
   MAX_EXT_LEDS,
   MAX_PENDING_PRESSES,
   OLED_ROWS,
+  OPS,
   PRESSURE_ACTIVE_THRESHOLD,
   PRESSURE_FULL_SCALE,
+  REL_COLS,
+  REL_ROWS,
+  TICK_FALLBACK_MS,
 } from "./opset.mjs";
+import { atan2Deg, imuField, magField, resolveSpan, sqrtSafe } from "./flowmath.mjs";
 import { renderExtLeds } from "./extled.mjs";
 import { formatOledTextLine, oledBarGeometry } from "./oled.mjs";
 
@@ -59,6 +75,10 @@ const FULL_SCALE = f32(PRESSURE_FULL_SCALE);
  * @property {ArrayLike<number>} values row-major cell values
  * @property {number} rows
  * @property {number} cols
+ * @property {ArrayLike<number>} [imu] ax, ay, az (g), gx, gy, gz (deg/s)
+ * @property {ArrayLike<number>} [mag] mx, my, mz (microtesla)
+ * @property {number} [battery] percent; overrides setBattery() for this frame
+ * @property {boolean} [linked] overrides setLinked() for this frame
  */
 
 /**
@@ -155,6 +175,7 @@ class NodeState {
     this.result = 0;
     this.boolResult = false;
     this.lastBool = false;
+    this.lastBool2 = false;
     this.sinceMs = 0;
     // Delta keeps its previous sample in the node's own `value`.
     this.prev = f32(Number(node.value ?? 0));
@@ -169,8 +190,10 @@ class NodeState {
 export class Simulator {
   /**
    * @param {Record<string, any>} pkg a flow package
-   * @param {{appName?: string}} [options] the name events are recorded under
-   *   (the device uses the slot name, e.g. "flow1"; defaults to the package id)
+   * @param {{appName?: string, restore?: Record<number, number>}} [options]
+   *   `appName` is the name events are recorded under (the device uses the
+   *   slot name, e.g. "flow1"; defaults to the package id). `restore` seeds
+   *   persisted counters by node index, as a reboot would.
    */
   constructor(pkg, options = {}) {
     if (pkg.kind === "readout") throw new Error("a readout package has no graph to simulate");
@@ -183,6 +206,16 @@ export class Simulator {
     this.canDisplay = caps.has("display");
     this.hearsButton = caps.has("button");
     this.canDriveExtLed = caps.has("drive_ext_led");
+    this.readsImu = caps.has("read_imu");
+    this.readsMag = caps.has("read_mag");
+    this.readsPower = caps.has("power");
+    this.readsLink = caps.has("link");
+    this.onTicks = caps.has("tick");
+    this.canPersist = caps.has("persist");
+    this.restoreValues = options.restore ?? null;
+    /** Battery percent, or -1 for no gauge reading. */
+    this.battery = -1;
+    this.linkUp = false;
     this.pendingPresses = 0;
     this.pressShown = false;
     /** Which node drew each OLED row on the last frame, or -1. */
@@ -216,6 +249,19 @@ export class Simulator {
   /** Forget all state, as a fresh load on the device would. */
   reset() {
     this.states = this.nodes.map((node) => new NodeState(node));
+    if (this.canPersist && this.restoreValues) {
+      for (const [index, value] of Object.entries(this.restoreValues)) {
+        const node = this.nodes[Number(index)];
+        if (node && node.persist && (node.op === "counter" || node.op === "counter_reset")) {
+          this.states[Number(index)].result = f32(value);
+        }
+      }
+    }
+    /** The last frame evaluated, for ticks and their events. */
+    this.lastFrameSeq = 0;
+    /** @type {number|null} */
+    this.lastFrameMs = null;
+    this.ticks = 0;
     this.features = Object.fromEntries(FEATURE_FIELDS.map((name) => [name, 0]));
     this.events = [];
     this.ledChanges = [];
@@ -229,6 +275,36 @@ export class Simulator {
     this.displayNode = new Array(OLED_ROWS).fill(-1);
     this.extPixelNode = new Array(MAX_EXT_LEDS).fill(-1);
     this.extMeterNode = -1;
+  }
+
+  /**
+   * What battery() reads from now on: percent, or -1 for no gauge reading.
+   * @param {number} percent
+   */
+  setBattery(percent) {
+    this.battery = f32(percent);
+  }
+
+  /**
+   * What linked() reads from now on.
+   * @param {boolean} linked
+   */
+  setLinked(linked) {
+    this.linkUp = Boolean(linked);
+  }
+
+  /**
+   * Persisted counters by node index -- what the device writes to NVS.
+   * @returns {Record<number, number>}
+   */
+  persisted() {
+    /** @type {Record<number, number>} */
+    const out = {};
+    if (!this.canPersist) return out;
+    this.nodes.forEach((node, index) => {
+      if (node.persist && (node.op === "counter" || node.op === "counter_reset")) out[index] = this.states[index].result;
+    });
+    return out;
   }
 
   /** A short press of the action button, seen by the next free frame. */
@@ -247,7 +323,8 @@ export class Simulator {
   }
 
   /**
-   * @param {Frame} frame
+   * @param {{seq: number, timestampMs: number}} frame the frame, or for a tick
+   *   the last frame's seq and the tick's time
    * @param {string} event
    * @param {string} detail
    * @param {number|null} [value]
@@ -278,17 +355,46 @@ export class Simulator {
    * @returns {SimEvent[]}
    */
   step(frame) {
+    this.frames += 1;
+    this.lastFrameSeq = frame.seq;
+    this.lastFrameMs = frame.timestampMs >>> 0;
+    return this.evaluate(frame, frame.timestampMs >>> 0, frame);
+  }
+
+  /**
+   * The device's 10 Hz tick. A package with `tick` is evaluated on it only
+   * while no frame has arrived for TICK_FALLBACK_MS; every matrix read holds.
+   * @param {number} nowMs
+   * @param {{imu?: ArrayLike<number>, mag?: ArrayLike<number>, battery?: number, linked?: boolean}} [sensors]
+   * @returns {SimEvent[]} the events it produced (none when it did not run)
+   */
+  tick(nowMs, sensors = {}) {
+    if (!this.onTicks || this.nodes.length === 0) return [];
+    if (this.lastFrameMs !== null && ((nowMs - this.lastFrameMs) >>> 0) < TICK_FALLBACK_MS) return [];
+    this.ticks += 1;
+    return this.evaluate(null, nowMs >>> 0, { seq: this.lastFrameSeq, timestampMs: nowMs, ...sensors });
+  }
+
+  /**
+   * @param {Frame|null} frame null on a tick
+   * @param {number} nowMs
+   * @param {{seq: number, timestampMs: number, imu?: ArrayLike<number>, mag?: ArrayLike<number>, battery?: number, linked?: boolean}} at
+   * @returns {SimEvent[]}
+   */
+  evaluate(frame, nowMs, at) {
     const firstEvent = this.events.length;
-    const values = frame.values;
+    const values = frame ? frame.values : [];
     const cells = values.length;
-    const rows = frame.rows;
-    const cols = frame.cols || 1;
-    const nowMs = frame.timestampMs >>> 0;
+    const rows = frame ? frame.rows : 0;
+    const cols = frame ? frame.cols || 1 : 1;
+    const imu = this.readsImu && at.imu && at.imu.length >= 6 ? at.imu : null;
+    const mag = this.readsMag && at.mag && at.mag.length >= 3 ? at.mag : null;
+    const battery = this.readsPower ? f32(at.battery ?? this.battery) : -1;
+    const linked = this.readsLink ? Boolean(at.linked ?? this.linkUp) : false;
     const states = this.states;
     const count = this.nodes.length;
     let skipUntil = 0;
     let skippedAny = false;
-    this.frames += 1;
     let pressed = false;
     if (this.pressShown) {
       this.pressShown = false;
@@ -315,6 +421,8 @@ export class Simulator {
       const refs = inputsOf(node.in);
       const a = () => states[refs[0]];
       const b = () => states[refs[1]];
+      // On a tick there is no frame: every read of the matrix holds.
+      if (!frame && SWEEP_OPS.has(node.op)) continue;
 
       switch (node.op) {
         case "total": {
@@ -329,19 +437,40 @@ export class Simulator {
           state.result = peak;
           break;
         }
-        case "region_sum": {
+        case "region_sum":
+        case "region_peak":
+        case "region_active":
+        case "region_row_centroid":
+        case "region_col_centroid": {
+          const rel = Number(node.rel ?? 0);
+          const rs = resolveSpan(Number(node.r0) & 0xff, Number(node.r1) & 0xff, (rel & REL_ROWS) !== 0, rows);
+          const cs = resolveSpan(Number(node.c0) & 0xff, Number(node.c1) & 0xff, (rel & REL_COLS) !== 0, cols);
+          const limit = f32(Number(node.value ?? 0));
           let sum = 0;
-          const r0 = Number(node.r0) & 0xff;
-          const r1 = Number(node.r1) & 0xff;
-          const c0 = Number(node.c0) & 0xff;
-          const c1 = Number(node.c1) & 0xff;
-          for (let r = r0; r <= r1 && r < rows; r += 1) {
-            for (let c = c0; c <= c1 && c < cols; c += 1) {
+          let peak = 0;
+          let active = 0;
+          let weighted = 0;
+          for (let r = rs.lo; r <= rs.hi && r < rows; r += 1) {
+            for (let c = cs.lo; c <= cs.hi && c < cols; c += 1) {
               const index = r * cols + c;
-              if (index < cells) sum = f32(sum + values[index]);
+              if (index >= cells) continue;
+              const value = f32(values[index]);
+              if (node.op === "region_sum") {
+                sum = f32(sum + value);
+              } else if (node.op === "region_peak") {
+                if (value > peak) peak = value;
+              } else if (node.op === "region_active") {
+                if (value >= limit) active += 1;
+              } else if (value >= ACTIVE) {
+                sum = f32(sum + value);
+                weighted = f32(weighted + f32(value * (node.op === "region_row_centroid" ? r : c)));
+              }
             }
           }
-          state.result = sum;
+          if (node.op === "region_sum") state.result = sum;
+          else if (node.op === "region_peak") state.result = peak;
+          else if (node.op === "region_active") state.result = active;
+          else state.result = sum > 0 ? f32(weighted / sum) : 0;
           break;
         }
         case "active_cells": {
@@ -378,7 +507,7 @@ export class Simulator {
           break;
         }
         case "features":
-          this.features = computeFeatures(frame);
+          this.features = computeFeatures(/** @type {Frame} */ (frame));
           state.result = this.features.total_force;
           break;
         case "feature_get":
@@ -427,6 +556,65 @@ export class Simulator {
           state.lastBool = current;
           break;
         }
+        case "counter_reset": {
+          // The reset is looked at first, so a count and a reset on the same
+          // frame leave 1: the edge that arrived with the reset still counts.
+          const reset = b().boolResult;
+          if (reset && !state.lastBool2) state.result = 0;
+          state.lastBool2 = reset;
+          const current = a().boolResult;
+          if (current && !state.lastBool) state.result = f32(state.result + 1);
+          state.lastBool = current;
+          break;
+        }
+        case "not":
+          state.boolResult = !a().boolResult;
+          state.result = state.boolResult ? 1 : 0;
+          break;
+        case "duration": {
+          const current = a().boolResult;
+          if (current && !state.lastBool) state.sinceMs = nowMs;
+          state.lastBool = current;
+          state.result = current ? f32((nowMs - state.sinceMs) >>> 0) : 0;
+          break;
+        }
+        case "interval": {
+          const current = a().boolResult;
+          if (current && !state.lastBool) {
+            // `filled` marks that a first rise has been seen.
+            if (state.filled > 0) state.result = f32((nowMs - state.sinceMs) >>> 0);
+            state.sinceMs = nowMs;
+            state.filled = 1;
+          }
+          state.lastBool = current;
+          break;
+        }
+        case "peak_since": {
+          const value = a().result;
+          const reset = b().boolResult;
+          if ((reset && !state.lastBool) || state.filled === 0) {
+            state.result = value;
+            state.filled = 1;
+          } else if (value > state.result) {
+            state.result = value;
+          }
+          state.lastBool = reset;
+          break;
+        }
+        case "sqrt": state.result = sqrtSafe(a().result); break;
+        case "atan2": state.result = atan2Deg(a().result, b().result); break;
+        case "imu":
+          if (imu) state.result = imuField(imu, IMU_FIELDS.indexOf(String(node.field)));
+          break;
+        case "mag":
+          if (mag) state.result = magField(mag, MAG_FIELDS.indexOf(String(node.field)));
+          break;
+        case "battery": state.result = battery; break;
+        case "linked":
+          state.boolResult = linked;
+          state.result = linked ? 1 : 0;
+          break;
+        case "uptime": state.result = f32(nowMs / 1000); break;
         case "threshold": {
           const input = a().result;
           const value = f32(Number(node.value ?? 0));
@@ -455,15 +643,16 @@ export class Simulator {
           if (current !== state.lastBool) {
             state.lastBool = current;
             state.boolResult = current;
-            this.record(frame, String(node.event), current ? "rise" : "fall");
+            this.record(at, String(node.event), current ? "rise" : "fall");
           }
           break;
         }
         case "emit_value": {
           const current = a().boolResult;
-          if (current && !state.lastBool) {
+          const edge = node.fall ? !current && state.lastBool : current && !state.lastBool;
+          if (edge) {
             const value = b().result;
-            this.record(frame, String(node.event), value.toFixed(3), value);
+            this.record(at, String(node.event), value.toFixed(3), value);
           }
           state.lastBool = current;
           break;
@@ -476,7 +665,7 @@ export class Simulator {
               const colour = current ? String(node.rgb) : "off";
               const rgb = LED_COLOURS[colour] ?? LED_COLOURS.off;
               this.led = rgb;
-              this.ledChanges.push({ frameSeq: frame.seq, timestampMs: frame.timestampMs, colour, rgb, node: i });
+              this.ledChanges.push({ frameSeq: at.seq, timestampMs: at.timestampMs, colour, rgb, node: i });
             }
           }
           break;
@@ -536,7 +725,7 @@ export class Simulator {
     if (skippedAny !== this.degraded) {
       this.degraded = skippedAny;
       if (skippedAny) this.degradations += 1;
-      this.record(frame, "degraded", skippedAny ? "rise" : "fall");
+      this.record(at, "degraded", skippedAny ? "rise" : "fall");
     }
     return this.events.slice(firstEvent);
   }
@@ -599,6 +788,9 @@ export class Simulator {
     }));
   }
 }
+
+/** Ops that read the matrix, and hold their value on a tick. */
+const SWEEP_OPS = new Set(Object.values(OPS).filter((spec) => spec.sweep).map((spec) => spec.name));
 
 /**
  * Mirrors FlowApp::pushWindow, including its warm-up behaviour: only the

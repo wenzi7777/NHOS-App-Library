@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Left/Right Symmetry",
+    "ja": "左右対称性",
+    "zh-CN": "左右对称性"
+  },
+  "summary": {
+    "en": "Left/right load share and peaks; flags lasting asymmetry.",
+    "ja": "左右の荷重比とピーク。持続する非対称を検出。",
+    "zh-CN": "左右载荷占比与峰值，提示持续的不对称。"
+  },
+  "license": "MPL-2.0"
+}

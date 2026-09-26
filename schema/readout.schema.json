@@ -32,7 +32,7 @@
             "type": "object",
             "required": ["kind", "title"],
             "properties": {
-              "kind": {"enum": ["stats", "table"]},
+              "kind": {"enum": ["stats", "table", "chart"]},
               "title": {"type": "string", "maxLength": 40},
               "source": {"type": "string"},
               "sort": {
@@ -53,6 +53,21 @@
                   }
                 }
               },
+              "series": {
+                "type": "array", "minItems": 1, "maxItems": 4,
+                "description": "chart only: numeric fields of `source` plotted over the last `points` polls.",
+                "items": {
+                  "type": "object",
+                  "required": ["field"],
+                  "properties": {
+                    "label": {"type": "string", "maxLength": 20},
+                    "field": {"type": "string"}
+                  }
+                }
+              },
+              "points": {"type": "integer", "minimum": 10, "maximum": 600, "default": 60, "description": "chart only: how many polls of history to keep."},
+              "min": {"type": "number", "description": "chart only: fixed bottom of the y axis; otherwise it follows the data."},
+              "max": {"type": "number", "description": "chart only: fixed top of the y axis."},
               "columns": {
                 "type": "array", "maxItems": 8,
                 "items": {

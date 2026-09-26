@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Sustained Load",
+    "ja": "持続荷重",
+    "zh-CN": "持续受压"
+  },
+  "summary": {
+    "en": "Times continuous loading; alerts after 20 minutes.",
+    "ja": "連続荷重の時間を計測し、20 分で警告します。",
+    "zh-CN": "计时持续受压，超过 20 分钟发出提醒。"
+  },
+  "license": "MPL-2.0"
+}

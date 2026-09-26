@@ -1,0 +1,71 @@
+{
+  "nhapp": 1,
+  "kind": "readout",
+  "manifest": {
+    "id": "sensors",
+    "name": "Sensor Scope",
+    "version": "1.0.0",
+    "author": "wenzi7777",
+    "summary": "Live IMU, magnetometer and battery readings, charted.",
+    "category": "diagnostics",
+    "min_os": "v1.6.0",
+    "icon": "wave"
+  },
+  "readout": {
+    "refresh_ms": 500,
+    "sources": [
+      {"id": "imu", "command": "sensor_sample", "path": "imu"},
+      {"id": "mag", "command": "sensor_sample", "path": "mag"},
+      {"id": "battery", "command": "sensor_sample", "path": "battery"}
+    ],
+    "sections": [
+      {
+        "kind": "chart",
+        "title": "Acceleration (g)",
+        "source": "imu",
+        "points": 120,
+        "series": [
+          {"label": "x", "field": "ax"},
+          {"label": "y", "field": "ay"},
+          {"label": "z", "field": "az"}
+        ]
+      },
+      {
+        "kind": "chart",
+        "title": "Rotation (deg/s)",
+        "source": "imu",
+        "points": 120,
+        "series": [
+          {"label": "x", "field": "gx"},
+          {"label": "y", "field": "gy"},
+          {"label": "z", "field": "gz"}
+        ]
+      },
+      {
+        "kind": "chart",
+        "title": "Magnetic field (uT)",
+        "source": "mag",
+        "points": 120,
+        "series": [
+          {"label": "x", "field": "mx"},
+          {"label": "y", "field": "my"},
+          {"label": "z", "field": "mz"}
+        ]
+      },
+      {
+        "kind": "stats",
+        "title": "Now",
+        "items": [
+          {"label": "IMU", "source": "imu", "field": "valid", "format": "bool",
+           "hint": "False on a board without an IMU, or while it is disabled."},
+          {"label": "Magnetometer", "source": "mag", "field": "valid", "format": "bool",
+           "hint": "False on a board without one, or before its calibration is loaded."},
+          {"label": "Battery", "source": "battery", "field": "percent", "format": "raw",
+           "hint": "State of charge from the fuel gauge, in percent."},
+          {"label": "Battery voltage", "source": "battery", "field": "mv", "format": "int",
+           "hint": "Millivolts."}
+        ]
+      }
+    ]
+  }
+}

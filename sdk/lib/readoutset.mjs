@@ -34,10 +34,16 @@ export const ALLOWED_SOURCES = Object.freeze(new Set([
   "storage_status",
   "status",
   "capabilities",
+  // v1.6.0: the latest IMU, magnetometer and fuel-gauge readings.
+  "sensor_sample",
 ]));
 
-/** Widget kinds the renderer knows. */
-export const SECTION_KINDS = Object.freeze(new Set(["stats", "table"]));
+/**
+ * Widget kinds the renderer knows. A chart plots up to MAX_SERIES numeric
+ * fields of one source over its last `points` polls; the history lives in the
+ * browser, so it starts empty whenever the readout is opened.
+ */
+export const SECTION_KINDS = Object.freeze(new Set(["stats", "table", "chart"]));
 
 /**
  * How a raw number is presented. Nothing here computes a value the device did
@@ -58,5 +64,8 @@ export const MAX_SOURCES = 8;
 export const MAX_SECTIONS = 8;
 export const MAX_COLUMNS = 8;
 export const MAX_STATS = 12;
+export const MAX_SERIES = 4;
+export const MIN_CHART_POINTS = 10;
+export const MAX_CHART_POINTS = 600;
 export const MIN_REFRESH_MS = 500;
 export const MAX_REFRESH_MS = 60000;

@@ -1,0 +1,27 @@
+# Left against right: each half's share of the load and its peak cell, and
+# an event when the split stays lopsided. The halves are percentages, so this
+# works on any matrix -- including two insoles laid side by side.
+app lr_gait {
+  name    "Left/Right Symmetry"
+  version 1.0.0
+  author  wenzi7777
+  summary "Left/right load share and peaks; flags lasting asymmetry."
+  category biomechanics
+  icon    scale
+}
+
+region left  = rows 0%..100%, cols 0%..50%
+region right = rows 0%..100%, cols 50%..100%
+
+signal l = sum(left)
+signal r = sum(right)
+signal share = mean(l / (l + r), 60)
+signal lean = abs(share - 0.5)
+
+event lopsided when lean > 0.15 for 2000ms
+emit share value share on rise(lopsided)
+
+show 0 "L peak" peak(left)
+show 1 "R peak" peak(right)
+bar  2 "L share" share range 0..1
+pixel 8 red when lopsided

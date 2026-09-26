@@ -1,0 +1,43 @@
+# Fall detection from the IMU: a hard impact, then lying still. Either alone
+# is common -- a dropped bag, a nap -- but an impact followed by two seconds
+# without movement, starting within five seconds of it, is what a fall looks
+# like.
+#
+# Runs in the background, so it keeps watching when nothing is streaming. It
+# then sees the IMU ten times a second rather than once a frame, and a short
+# impact can fall between two looks: while streaming it is far more reliable.
+app fall {
+  name    "Fall Detector"
+  version 1.0.0
+  author  wenzi7777
+  summary "Impact followed by stillness raises a fall alert."
+  category care
+  icon    alert
+  background yes
+}
+
+signal g = imu(acc_mag)
+signal spin = imu(gyro_mag)
+
+event impact when g > 2.5
+event moving when spin > 15
+
+# Stillness restarts on any frame of movement -- including the impact itself,
+# so it can only be counted from after the impact.
+signal still_s = duration(not(moving)) / 1000
+
+# The uptime of the last impact, held: while the impact holds, the running
+# maximum follows uptime; after it, the input drops to -1e9 and the maximum
+# stays put. Before any impact it is -1e9, so `since` is enormous, not small.
+signal hit_at = peak_since(select(impact, uptime(), -1000000000), impact)
+signal since = uptime() - hit_at
+
+# Both must hold: still for 2 s, and that within 7 s of the impact. Compared
+# against 0.05, not 0: an event's `>` is `>=`, and a value resting on the
+# limit would chatter.
+event fallen when min(7 - since, still_s - 2) > 0.05
+
+# No room left in 24 nodes for a count on the OLED; every fall is in the
+# event log as fallen:rise.
+led red when fallen
+pixel 8 red when fallen

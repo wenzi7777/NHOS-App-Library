@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Experiment Marker",
+    "ja": "実験マーカー",
+    "zh-CN": "实验标记"
+  },
+  "summary": {
+    "en": "Button press records a numbered mark in the event log.",
+    "ja": "ボタンを押すと番号付きマークをイベントログに記録します。",
+    "zh-CN": "按下按钮即在事件日志中记录带编号的标记。"
+  },
+  "license": "MPL-2.0"
+}

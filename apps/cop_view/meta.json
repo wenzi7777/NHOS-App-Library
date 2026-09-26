@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Centre of Pressure",
+    "ja": "圧力中心",
+    "zh-CN": "压力中心"
+  },
+  "summary": {
+    "en": "Front/back and left/right load bias, with lean events.",
+    "ja": "前後・左右の荷重バイアスと傾きイベント。",
+    "zh-CN": "前后、左右载荷偏移及倾斜事件。"
+  },
+  "license": "MPL-2.0"
+}

@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Battery & Link",
+    "ja": "バッテリーと接続",
+    "zh-CN": "电量与连接"
+  },
+  "summary": {
+    "en": "Battery level, link state and time offline; low alert.",
+    "ja": "電池残量・接続状態・オフライン時間。低残量を警告。",
+    "zh-CN": "电量、连接状态与离线时长，低电量时提醒。"
+  },
+  "license": "MPL-2.0"
+}

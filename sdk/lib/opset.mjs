@@ -80,7 +80,66 @@ export const CAPABILITIES = Object.freeze({
   // The external LED strip. A running app that may drive it takes it over
   // from the configured preset, and hands it back when it stops.
   drive_ext_led: 1 << 11,
+  // v1.6.0. Evaluated 10 times a second while no frames arrive, so the app
+  // keeps running when the scanner stops (the matrix reads hold their values).
+  tick: 1 << 5,
+  // v1.6.0. battery(): the fuel gauge's state of charge.
+  power: 1 << 7,
+  // v1.6.0. linked(): whether the device has a Gateway or Hub to stream to.
+  link: 1 << 8,
+  // v1.6.0. mag(): the magnetometer, a separate sensor from the IMU.
+  read_mag: 1 << 12,
+  // v1.6.0. `persist` counters survive a reboot, in the device's NVS.
+  persist: 1 << 13,
 });
+
+/**
+ * Capabilities an older firmware would accept and then silently ignore, which
+ * is worse than refusing: an app that never runs on ticks, or never keeps its
+ * count, looks broken rather than unsupported. min_os says so instead.
+ * @type {Readonly<Record<string, string>>}
+ */
+export const CAPABILITY_SINCE = Object.freeze({
+  tick: "v1.6.0",
+  power: "v1.6.0",
+  link: "v1.6.0",
+  read_mag: "v1.6.0",
+  persist: "v1.6.0",
+});
+
+/**
+ * Node fields an older firmware would silently ignore. A relative region read
+ * as absolute indices would sum the wrong cells, and a dropped `persist` would
+ * quietly lose a count, so either one pulls min_os up to where it works.
+ * @type {Readonly<Record<string, string>>}
+ */
+export const FIELD_SINCE = Object.freeze({
+  rel: "v1.6.0",
+  persist: "v1.6.0",
+  fall: "v1.6.0",
+});
+
+// `rel` bits: a region whose rows (1) and/or columns (2) are percentages of
+// the matrix, resolved against the frame's own shape on the device.
+export const REL_ROWS = 1;
+export const REL_COLS = 2;
+export const MAX_REL_PERCENT = 100;
+
+/** imu(field), in the order the firmware packs them. g, deg/s, g, deg/s, deg, deg. */
+export const IMU_FIELDS = Object.freeze([
+  "ax", "ay", "az", "gx", "gy", "gz", "acc_mag", "gyro_mag", "pitch", "roll",
+]);
+
+/** mag(field), in firmware order. Microtesla, except heading in degrees. */
+export const MAG_FIELDS = Object.freeze(["mx", "my", "mz", "strength", "heading"]);
+
+// A tick-driven app is evaluated on ticks only while no frame has arrived for
+// this long (FlowApp::kTickFallbackMs), so it never runs twice per frame.
+export const TICK_FALLBACK_MS = 250;
+export const TICK_PERIOD_MS = 100;
+// A persisted counter is written at most this often (FlowApp::kPersistIntervalMs),
+// so a reboot loses at most this much counting.
+export const PERSIST_INTERVAL_MS = 30000;
 
 // The most external pixels any board has (v1.5.F; v1.0.F has 3). A pixel past
 // a board's own count is accepted and never shown. Mirrored in AppExtLed.h.
@@ -165,13 +224,15 @@ function op(name, spec = {}) {
 const V11 = "v1.1.0";
 const V14 = "v1.4.0";
 const V15 = "v1.5.0";
+const V16 = "v1.6.0";
+const REGION = ["r0", "c0", "r1", "c1"];
 
 /** @type {Readonly<Record<string, OpSpec>>} */
 export const OPS = Object.freeze(Object.fromEntries([
   // --- v1.0.0: shipped, do not change semantics -----------------------------
   op("total", { sweep: true, summary: "Sum of every cell." }),
   op("peak", { sweep: true, summary: "Largest cell (0 if none is positive)." }),
-  op("region_sum", { sweep: true, required: ["r0", "c0", "r1", "c1"], summary: "Sum over a rectangle of cells." }),
+  op("region_sum", { sweep: true, required: REGION, optional: ["rel"], summary: "Sum over a rectangle of cells." }),
   op("active_cells", { sweep: true, required: ["value"], summary: "Count of cells at or above `value`." }),
   op("threshold", { inputs: 1, required: ["value"], optional: ["hysteresis"], boolean: true, summary: "True while input >= value; once latched, holds until input <= value - hysteresis." }),
   op("debounce", { inputs: 1, required: ["ms"], boolean: true, summary: "Passes a boolean only after it has held steady for `ms`." }),
@@ -195,7 +256,7 @@ export const OPS = Object.freeze(Object.fromEntries([
   op("max_hold", { inputs: 1, required: ["window"], windowKey: "window", since: V11, summary: "Largest value in the last `window` frames." }),
   op("delta", { inputs: 1, since: V11, summary: "Change since the previous frame." }),
   op("integrate", { inputs: 1, required: ["window"], windowKey: "window", since: V11, summary: "Sum of the last `window` frames." }),
-  op("counter", { inputs: 1, since: V11, summary: "Counts rising edges of a boolean." }),
+  op("counter", { inputs: 1, optional: ["persist"], since: V11, summary: "Counts rising edges of a boolean." }),
 
   // --- v1.1.0: richer sweeps ------------------------------------------------
   op("features", { sweep: true, nsPerCell: FEATURES_NS_PER_CELL, since: V11, summary: "One sweep computing every feature field; read with feature_get." }),
@@ -206,7 +267,7 @@ export const OPS = Object.freeze(Object.fromEntries([
 
   // --- v1.1.0: output -------------------------------------------------------
   op("led", { inputs: 1, required: ["rgb"], since: V11, summary: "Sets the LED to `rgb` while a boolean is true, off when it falls." }),
-  op("emit_value", { inputs: 2, required: ["event"], since: V11, summary: "Records `event` carrying b's value on each rise of a." }),
+  op("emit_value", { inputs: 2, required: ["event"], optional: ["fall"], since: V11, summary: "Records `event` carrying b's value on each rise of a (each fall, with `fall`)." }),
 
   // --- v1.1.0: conditionals for self-degradation ----------------------------
   // Branches keep execution bounded (worst case = every node runs); only
@@ -229,6 +290,32 @@ export const OPS = Object.freeze(Object.fromEntries([
   // drawn by the LED service outside every app's budget.
   op("ext_pixel", { inputs: 1, required: ["index", "rgb"], since: V15, summary: "Lights external pixel `index` in `rgb` on frames a boolean is true." }),
   op("ext_meter", { inputs: 1, required: ["lo", "hi"], since: V15, summary: "Shows the input as a meter along the external strip over [lo, hi], green to red." }),
+
+  // --- v1.6.0: time, logic and counting --------------------------------------
+  // None of these takes a window, so they cost nothing from the pool and are
+  // not limited to 128 frames: duration() can time half an hour.
+  op("not", { inputs: 1, boolean: true, since: V16, summary: "True while a boolean is false." }),
+  op("duration", { inputs: 1, since: V16, summary: "Milliseconds a boolean has been continuously true; 0 while it is false." }),
+  op("interval", { inputs: 1, since: V16, summary: "Milliseconds between the last two rising edges of a boolean; 0 until it has risen twice." }),
+  op("peak_since", { inputs: 2, since: V16, summary: "Largest value of a since b last rose; restarts from a's value on each rise of b." }),
+  op("counter_reset", { inputs: 2, optional: ["persist"], since: V16, summary: "Counts rising edges of a; a rise of b zeroes it first." }),
+  op("sqrt", { inputs: 1, since: V16, summary: "Square root, or 0 for a negative input." }),
+  op("atan2", { inputs: 2, since: V16, summary: "Angle of the point (b, a) in degrees, -180 to 180 (atan2(a, b))." }),
+
+  // --- v1.6.0: sweeps over a region ------------------------------------------
+  op("region_peak", { sweep: true, required: REGION, optional: ["rel"], since: V16, summary: "Largest cell in a rectangle (0 if none is positive)." }),
+  op("region_active", { sweep: true, required: ["value", ...REGION], optional: ["rel"], since: V16, summary: "Count of cells in a rectangle at or above `value`." }),
+  op("region_row_centroid", { sweep: true, required: REGION, optional: ["rel"], since: V16, summary: "Force-weighted row, in whole-matrix rows, of a rectangle's cells at or above the contact threshold." }),
+  op("region_col_centroid", { sweep: true, required: REGION, optional: ["rel"], since: V16, summary: "Force-weighted column, in whole-matrix columns, of a rectangle's cells at or above the contact threshold." }),
+
+  // --- v1.6.0: the other sensors ---------------------------------------------
+  // Each reads the sample delivered with the frame (or tick) and holds its last
+  // value when there is none, so a board without the sensor reads 0.
+  op("imu", { required: ["field"], since: V16, summary: "One IMU field: ax/ay/az and acc_mag in g, gx/gy/gz and gyro_mag in deg/s, pitch/roll in degrees." }),
+  op("mag", { required: ["field"], since: V16, summary: "One magnetometer field: mx/my/mz and strength in microtesla, heading in degrees 0-360." }),
+  op("battery", { since: V16, summary: "Battery charge in percent, or -1 when the board has no gauge reading." }),
+  op("linked", { boolean: true, since: V16, summary: "True while the device has a Gateway or Hub to stream to." }),
+  op("uptime", { since: V16, summary: "Seconds since the device booted." }),
 ].map((spec) => [spec.name, spec])));
 
 export const V1_0_OPS = Object.freeze(
@@ -299,15 +386,25 @@ export function appShareUs(fps, runningApps) {
 }
 
 /**
- * The oldest firmware that can load a graph: from the ops it uses, and from
- * its size.
- * @param {ReadonlyArray<{op?: unknown}>} nodes
+ * The oldest firmware that can load a graph: from the ops it uses, the node
+ * fields it relies on, the capabilities it declares, and its size.
+ * @param {ReadonlyArray<Record<string, unknown>>} nodes
+ * @param {readonly unknown[]} [capabilities]
  */
-export function minOsFor(nodes) {
+export function minOsFor(nodes, capabilities = []) {
   let needed = nodes.length > LEGACY_MAX_NODES ? MIN_OS_FOR_LARGE_GRAPHS : "v1.0.0";
-  for (const node of nodes) {
-    const since = opSpec(node.op).since;
+  const raise = (/** @type {string} */ since) => {
     if (compareVersions(since, needed) > 0) needed = since;
+  };
+  for (const node of nodes) {
+    raise(opSpec(node.op).since);
+    for (const [field, since] of Object.entries(FIELD_SINCE)) {
+      if (field in node && node[field]) raise(since);
+    }
+  }
+  for (const cap of capabilities) {
+    const since = CAPABILITY_SINCE[String(cap)];
+    if (since) raise(since);
   }
   return needed;
 }

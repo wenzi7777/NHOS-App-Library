@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "Sensor Scope",
+    "ja": "センサースコープ",
+    "zh-CN": "传感器示波器"
+  },
+  "summary": {
+    "en": "Live IMU, magnetometer and battery readings, charted.",
+    "ja": "IMU・磁気センサー・電池の値をリアルタイムにグラフ表示。",
+    "zh-CN": "实时图表显示 IMU、磁力计与电池读数。"
+  },
+  "license": "MPL-2.0"
+}

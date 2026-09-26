@@ -1,0 +1,29 @@
+# Battery and link at a glance, on the OLED and the LED strip, for a session
+# away from the Desktop. Runs in the background, so it keeps working while
+# nothing is streaming -- which is when you most want to know.
+app bat_view {
+  name    "Battery & Link"
+  version 1.0.0
+  author  wenzi7777
+  summary "Battery level, link state and time offline; low alert."
+  category diagnostics
+  icon    battery
+  background yes
+}
+
+signal pct = battery()
+signal online = linked()
+signal offline_s = duration(not(online)) / 1000
+
+# battery() is -1 on a board without a gauge reading, which is not "low": the
+# charge must be under 15 % and above 0.5 %. Compared against a margin, not 0,
+# since an event's `>` is `>=` and a value resting on the limit would chatter.
+event low when min(15 - pct, pct - 0.5) > 0.01 for 5000ms
+emit low_battery value pct on rise(low)
+
+led red when low
+pixel 8 red when low
+pixel 0 green when online
+show 0 "Batt %" pct
+show 1 "Offline s" offline_s
+show 2 "Up h" uptime() / 3600 digits 2

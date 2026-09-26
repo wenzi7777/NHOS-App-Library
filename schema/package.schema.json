@@ -33,7 +33,7 @@
         "min_os": {"type": "string", "pattern": "^v?\\d+\\.\\d+\\.\\d+$"},
         "capabilities": {
           "type": "array",
-          "items": {"enum": ["read_matrix", "read_imu", "emit_event", "drive_led", "write_file", "button", "display", "drive_ext_led"]}
+          "items": {"enum": ["read_matrix", "read_imu", "emit_event", "drive_led", "write_file", "button", "display", "drive_ext_led", "tick", "power", "link", "read_mag", "persist"]}
         },
         "budget_us": {"type": "integer", "minimum": 0},
         "icon": {"type": "string", "maxLength": 15}

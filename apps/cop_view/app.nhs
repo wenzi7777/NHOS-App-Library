@@ -1,0 +1,43 @@
+# Where the load sits, as two biases from -1 to +1: front/back and
+# left/right. Built from region sums in percent, so it means the same thing
+# on any matrix, unlike a centroid in rows and columns.
+app cop_view {
+  name    "Centre of Pressure"
+  version 1.0.0
+  author  wenzi7777
+  summary "Front/back and left/right load bias, with lean events."
+  category biomechanics
+  icon    target
+}
+
+region front = rows 0%..50%, cols 0%..100%
+region back  = rows 50%..100%, cols 0%..100%
+region left  = rows 0%..100%, cols 0%..50%
+region right = rows 0%..100%, cols 50%..100%
+
+signal f = sum(front)
+signal b = sum(back)
+signal l = sum(left)
+signal r = sum(right)
+
+# One denominator for both axes, to stay within 24 nodes: f + b and l + r are
+# each the whole load, except that on an odd matrix the shared middle row (or
+# column) counts twice -- a difference of one row's share at most.
+signal load = f + b
+
+# Half a second of averaging: a sway is a lean, a footfall is not.
+signal fb = mean((f - b) / load, 30)
+signal lr = mean((r - l) / load, 30)
+
+# The opposite leans are thresholds on the negated biases: `fb < -0.3` would
+# spend a constant and a subtraction per event, these share the constant.
+signal bf = 0 - fb
+signal rl = 0 - lr
+
+event lean_front when fb > 0.3 hyst 0.05
+event lean_back  when bf > 0.3 hyst 0.05
+event lean_right when lr > 0.3 hyst 0.05
+event lean_left  when rl > 0.3 hyst 0.05
+
+show 0 "Front+" fb digits 2
+show 1 "Right+" lr digits 2

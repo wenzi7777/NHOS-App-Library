@@ -1,0 +1,30 @@
+# Tilt from level, from the direction of gravity. Mount the board flat in the
+# posture you want to keep (component side up); leaning more than 25 degrees
+# for three seconds raises `slouch`, and how far it went is reported when it
+# ends.
+#
+# Gravity is only the whole acceleration while the board is not moving, so
+# this reads posture, not motion.
+app tilt {
+  name    "Tilt Alarm"
+  version 1.0.0
+  author  wenzi7777
+  summary "Pitch and roll from the IMU; alerts on a lasting lean."
+  category care
+  icon    level
+  background yes
+}
+
+signal pitch = imu(pitch)
+signal roll = imu(roll)
+signal lean = max(abs(pitch), abs(roll))
+
+event slouch when lean > 25 hyst 5 for 3000ms
+signal slouches = counter(slouch)
+emit slouch_deg value peak_since(lean, slouch) on fall(slouch)
+
+led red when slouch
+meter lean range 0..45
+show 0 "Pitch" pitch digits 1
+show 1 "Roll" roll digits 1
+show 2 "Slouches" slouches

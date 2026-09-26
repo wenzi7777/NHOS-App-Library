@@ -46,6 +46,18 @@ import {
   formatOledValue,
   oledBarGeometry,
 } from "../lib/index.mjs";
+import {
+  CAPABILITY_SINCE,
+  IMU_FIELDS,
+  MAG_FIELDS,
+  MAX_REL_PERCENT,
+  PERSIST_INTERVAL_MS,
+  REL_COLS,
+  REL_ROWS,
+  TICK_FALLBACK_MS,
+  readoutset,
+} from "../lib/index.mjs";
+import { imuField, magField, resolveSpan } from "../lib/flowmath.mjs";
 import { APPS, FIRMWARE, appsWith } from "./helpers.mjs";
 
 const present = existsSync(FIRMWARE);
@@ -359,5 +371,148 @@ describe("package contract", { skip }, () => {
     const registry = source("AppRegistry.cpp");
     assert.match(registry, /manifest\.declaredBudgetUs != 0 \? manifest\.declaredBudgetUs\s*:\s*FlowApp::kDefaultBudgetUs/);
     assert.match(source("AppPackage.cpp"), /jsonExtractInt\(manifest, "budget_us"/);
+  });
+});
+
+describe("v1.6.0 contract", { skip }, () => {
+  const flowH = present ? source("FlowApp.h") : "";
+  const flowCpp = present ? source("FlowApp.cpp") : "";
+  const mathH = present ? source("FlowMath.h") : "";
+
+  test("the imu and mag fields agree, in order", () => {
+    for (const [fn, fields, enumName] of /** @type {const} */ ([
+      ["uint8_t imuFieldFromName", IMU_FIELDS, "ImuField"],
+      ["uint8_t magFieldFromName", MAG_FIELDS, "MagField"],
+    ])) {
+      const names = [...body(flowCpp, fn).matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
+      assert.deepEqual(names, [...fields], fn);
+      const enumBody = new RegExp(`enum class ${enumName} : uint8_t \\{([^}]*)\\}`).exec(mathH);
+      assert.ok(enumBody, enumName);
+      const members = enumBody[1].split(",").map((m) => m.trim().split(/\s|=/)[0]).filter((m) => m && m !== "Count");
+      assert.equal(members.length, fields.length, enumName);
+    }
+  });
+
+  test("the region, tick and persist constants match", () => {
+    assert.equal(constant(mathH, "kRegionRelRows"), REL_ROWS);
+    assert.equal(constant(mathH, "kRegionRelCols"), REL_COLS);
+    assert.equal(constant(mathH, "kMaxRegionPercent"), MAX_REL_PERCENT);
+    assert.equal(constant(flowH, "kTickFallbackMs"), TICK_FALLBACK_MS);
+    assert.equal(constant(flowH, "kPersistIntervalMs"), PERSIST_INTERVAL_MS);
+  });
+
+  test("every capability has the firmware's bit, and a flow slot may hold it", () => {
+    const appH = source("App.h");
+    const bits = Object.fromEntries([...appH.matchAll(/(kAppCap\w+) = 1 << (\d+)/g)].map((m) => [m[1], 1 << Number(m[2])]));
+    const packageCpp = body(source("AppPackage.cpp"), "uint16_t AppPackage::capabilityFromName");
+    const allowed = body(flowCpp, "void FlowApp::applyPackageManifest");
+    for (const [name, bit] of Object.entries(CAPABILITIES)) {
+      const constantName = new RegExp(`name == "${name}"\\) return (kAppCap\\w+)`).exec(packageCpp)?.[1];
+      assert.ok(constantName, name);
+      assert.equal(bits[constantName], bit, name);
+      // A capability the slot's mask drops is granted by the library and
+      // silently withheld by the device.
+      if (name !== "write_file") assert.ok(allowed.includes(constantName), `${name} is masked off in a flow slot`);
+    }
+    for (const name of Object.keys(CAPABILITY_SINCE)) assert.ok(Object.hasOwn(CAPABILITIES, name), name);
+  });
+
+  test("the device strips every sample an app did not declare", () => {
+    const dispatch = body(source("AppManager.cpp"), "void AppManager::dispatch");
+    for (const [cap, field] of [["kAppCapReadImu", "imuSample"], ["kAppCapReadMag", "magSample"],
+      ["kAppCapPower", "batteryPercent"], ["kAppCapLink", "linked"]]) {
+      assert.match(dispatch, new RegExp(`${cap}\\) == 0\\) \\{\\s*delivered\\.${field} =`), field);
+    }
+  });
+
+  test("every command a readout may poll exists on the device", () => {
+    const control = source("ControlServer.cpp");
+    for (const command of readoutset.ALLOWED_SOURCES) {
+      assert.ok(control.includes(`cmd == "${command}"`), command);
+    }
+  });
+
+  test("the firmware resolves regions and derives angles the way flowmath.mjs says", { skip: compiler ? false : "no C++ toolchain that links" }, () => {
+    const dir = mkdtempSync(join(tmpdir(), "nhos-flowmath-"));
+    try {
+      writeFileSync(join(dir, "harness.cpp"), `
+#include <cstdio>
+#include <cstring>
+#include "FlowMath.h"
+using namespace nhos;
+static float fromBits(unsigned bits) { float f; std::memcpy(&f, &bits, 4); return f; }
+int main() {
+  char kind;
+  while (std::scanf(" %c", &kind) == 1) {
+    if (kind == 's') {
+      unsigned a, b, rel, count;
+      std::scanf("%u %u %u %u", &a, &b, &rel, &count);
+      const FlowSpan span = flowResolveSpan(a, b, rel != 0, count);
+      std::printf("%u %u\\n", span.lo, span.hi);
+    } else {
+      unsigned field, bits[6];
+      std::scanf("%u %x %x %x %x %x %x", &field, &bits[0], &bits[1], &bits[2], &bits[3], &bits[4], &bits[5]);
+      float sample[6];
+      for (int i = 0; i < 6; ++i) sample[i] = fromBits(bits[i]);
+      std::printf("%.9g\\n", kind == 'i' ? flowImuField(sample, field) : flowMagField(sample, field));
+    }
+  }
+}
+`);
+      const binary = join(dir, "harness");
+      execFileSync(/** @type {string} */ (compiler), [...cxxflags, "-std=c++17", "-O2", "-I", FIRMWARE, join(dir, "harness.cpp"), join(FIRMWARE, "FlowMath.cpp"), "-o", binary]);
+
+      const bits = (/** @type {number} */ value) => new Uint32Array(new Float32Array([value]).buffer)[0].toString(16);
+      const lines = [];
+      /** @type {({kind: "span", lo: number, hi: number} | {kind: "angle", value: number})[]} */
+      const expected = [];
+      // Every percentage pair on every matrix size a board has, and then some.
+      for (const count of [0, 1, 2, 3, 4, 5, 7, 14, 15, 16, 31]) {
+        for (let a = 0; a <= 100; a += 1) {
+          for (let b = a; b <= 100; b += 7) {
+            lines.push(`s ${a} ${b} 1 ${count}`);
+            expected.push({ kind: "span", ...resolveSpan(a, b, true, count) });
+          }
+        }
+      }
+      lines.push("s 3 250 0 5");
+      expected.push({ kind: "span", ...resolveSpan(3, 250, false, 5) });
+
+      let seed = 11;
+      const next = () => {
+        seed = (seed * 1103515245 + 12345) % 2 ** 31;
+        return Math.fround(((seed % 20001) - 10000) / 2500);
+      };
+      const samples = [[0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0], [-1, 0, 0, 0, 0, 0], [0, -1, 0, 0, 0, 0], [0, 0, -1, 0, 0, 0]];
+      for (let i = 0; i < 300; i += 1) samples.push(Array.from({ length: 6 }, next));
+      for (const sample of samples) {
+        for (let field = 0; field < IMU_FIELDS.length; field += 1) {
+          lines.push(`i ${field} ${sample.map(bits).join(" ")}`);
+          expected.push({ kind: "angle", value: imuField(sample, field) });
+        }
+        for (let field = 0; field < MAG_FIELDS.length; field += 1) {
+          lines.push(`m ${field} ${sample.map(bits).join(" ")}`);
+          expected.push({ kind: "angle", value: magField(sample, field) });
+        }
+      }
+
+      const output = execFileSync(binary, { input: `${lines.join("\n")}\n`, maxBuffer: 64 * 1024 * 1024 }).toString().trim().split("\n");
+      assert.equal(output.length, expected.length);
+      output.forEach((line, index) => {
+        const want = expected[index];
+        if (want.kind === "span") {
+          // Integer arithmetic: exactly.
+          assert.equal(line, `${want.lo} ${want.hi}`, lines[index]);
+        } else {
+          // float32 trigonometry and possibly fused multiply-adds on the
+          // device, double-then-fround here: agree to a few ulps.
+          const got = Number(line);
+          const tolerance = Math.max(1e-5, Math.abs(want.value) * 1e-5);
+          assert.ok(Math.abs(got - want.value) <= tolerance, `${lines[index]}: firmware ${got}, library ${want.value}`);
+        }
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

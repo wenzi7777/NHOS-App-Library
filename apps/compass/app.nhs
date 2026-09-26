@@ -1,0 +1,29 @@
+# A compass and a magnet detector from the magnetometer. The heading is not
+# tilt-compensated, so it is a compass only while the board lies flat; the
+# field strength works in any orientation, and a nearby magnet raises it far
+# above the Earth's 25-65 uT -- a contact-free switch.
+app compass {
+  name    "Compass"
+  version 1.0.0
+  author  wenzi7777
+  summary "Heading and field strength; detects a nearby magnet."
+  category sensing
+  icon    compass
+  background yes
+}
+
+signal heading = mag(heading)
+signal field = mag(strength)
+
+# Within 15 degrees of magnetic north (0 or 360): |heading - 180| > 165.
+event north when abs(heading - 180) > 165
+event magnet when field > 150 hyst 20
+signal magnets = counter(magnet)
+emit magnet_ut value peak_since(field, magnet) on fall(magnet)
+
+meter heading range 0..360
+pixel 0 blue when north
+pixel 8 red when magnet
+show 0 "Heading" heading
+show 1 "Field uT" field digits 1
+show 2 "Magnets" magnets
