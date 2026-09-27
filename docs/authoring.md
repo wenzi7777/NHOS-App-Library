@@ -70,6 +70,7 @@ A `<condition>` is either form of `event`'s `when`.
 
 `show` and `bar` draw on the OLED; see [The OLED and the button](#the-oled-and-the-button).
 `pixel` and `meter` drive the external LED strip; see [The external LED strip](#the-external-led-strip).
+`led` drives the board's status LED; see [The status LED](#the-status-led).
 
 A `gate` block is skipped on frames where its condition is false; the nodes
 inside hold their last values. See [Self-degradation](#self-degradation).
@@ -288,6 +289,30 @@ Nothing appears until the operator sets the device's **OLED page to `app`**
 screen over by itself, the same way it never starts itself. With several apps
 running, each row comes from the lowest-numbered slot that drew it, so two apps
 can share the panel by using different rows.
+
+## The status LED
+
+`led <colour> when <trigger>` holds the board's status LED at `<colour>` from
+the trigger's rise until its fall, and the fall hands the LED back to the
+system. It needs the `drive_led` capability.
+
+The LED is the system's first. An app's colour replaces only the healthy,
+online pattern (green, or the charging colours that stand in for it on a
+one-pixel board while plugged in). Anything the system is telling the operator
+shows instead, and the app's colour comes back once it is over. That covers
+booting, errors, low memory, OTA, a lost Wi-Fi or Hub link, FindMe, maintenance
+and safe mode, scan warnings, soft-off, and the short flashes that acknowledge
+a command. With several apps running, the lowest-numbered slot holding a colour
+wins, the same rule as the OLED rows and the strip.
+
+Firmware before v1.7.0 wrote the colour once and then let the system pattern
+repaint it within about 10 ms, so it was rarely visible. The emulator always
+shows the app's colour, because it has no system state to defer to.
+
+The device's Apps panel in the Desktop shows what the OLED, the status LED and
+the strip display right now, as the device reports it (`app_view`, v1.7.0). It
+also says which slot owns each row and when two slots compete for the same
+output.
 
 ## The external LED strip
 
