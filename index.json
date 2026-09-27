@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "product": "NHOS App Library",
-  "generated_at": "2026-09-26T14:55:03Z",
+  "generated_at": "2026-09-27T08:29:07Z",
   "cell_count": 225,
   "apps": [
     {
@@ -37,7 +37,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/balance/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/balance/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/balance/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/balance/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/balance/README.zh-CN.md"
       }
     },
     {
@@ -79,7 +81,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/bat_view/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/bat_view/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/bat_view/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/bat_view/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/bat_view/README.zh-CN.md"
       }
     },
     {
@@ -119,7 +123,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/compass/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/compass/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/compass/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/compass/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/compass/README.zh-CN.md"
       }
     },
     {
@@ -155,7 +161,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/contact/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/contact/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/contact/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/contact/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/contact/README.zh-CN.md"
       }
     },
     {
@@ -192,7 +200,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/cop_view/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/cop_view/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/cop_view/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/cop_view/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/cop_view/README.zh-CN.md"
       }
     },
     {
@@ -232,7 +242,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/fall/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/fall/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/fall/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/fall/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/fall/README.zh-CN.md"
       }
     },
     {
@@ -268,7 +280,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/features/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/features/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/features/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/features/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/features/README.zh-CN.md"
       }
     },
     {
@@ -305,7 +319,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/gait_time/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/gait_time/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/gait_time/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/gait_time/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/gait_time/README.zh-CN.md"
       }
     },
     {
@@ -341,7 +357,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/heel_strike/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/heel_strike/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/heel_strike/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/heel_strike/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/heel_strike/README.zh-CN.md"
       }
     },
     {
@@ -378,7 +396,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/load_strip/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/load_strip/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/load_strip/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/load_strip/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/load_strip/README.zh-CN.md"
       }
     },
     {
@@ -416,7 +436,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/lr_gait/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/lr_gait/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/lr_gait/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/lr_gait/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/lr_gait/README.zh-CN.md"
       }
     },
     {
@@ -454,7 +476,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/mark/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/mark/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/mark/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/mark/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/mark/README.zh-CN.md"
       }
     },
     {
@@ -491,7 +515,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/mat_view/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/mat_view/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/mat_view/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/mat_view/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/mat_view/README.zh-CN.md"
       }
     },
     {
@@ -530,7 +556,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sat_watch/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sat_watch/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sat_watch/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sat_watch/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sat_watch/README.zh-CN.md"
       }
     },
     {
@@ -563,7 +591,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sensors/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sensors/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sensors/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sensors/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sensors/README.zh-CN.md"
       }
     },
     {
@@ -600,7 +630,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/step_peak/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/step_peak/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/step_peak/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/step_peak/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/step_peak/README.zh-CN.md"
       }
     },
     {
@@ -640,7 +672,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/steps/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/steps/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/steps/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/steps/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/steps/README.zh-CN.md"
       }
     },
     {
@@ -679,7 +713,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sustain/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sustain/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sustain/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sustain/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/sustain/README.zh-CN.md"
       }
     },
     {
@@ -748,7 +784,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/taps/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/taps/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/taps/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/taps/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/taps/README.zh-CN.md"
       }
     },
     {
@@ -789,7 +827,9 @@
       },
       "icon_url": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/tilt/icon.svg",
       "readme_url": {
-        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/tilt/README.md"
+        "en": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/tilt/README.md",
+        "ja": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/tilt/README.ja.md",
+        "zh-CN": "https://raw.githubusercontent.com/wenzi7777/NHOS-App-Library/main/apps/tilt/README.zh-CN.md"
       }
     }
   ]
