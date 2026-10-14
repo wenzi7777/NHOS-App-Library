@@ -58,6 +58,7 @@ import {
   readoutset,
 } from "../lib/index.mjs";
 import { imuField, magField, resolveSpan } from "../lib/flowmath.mjs";
+import { CONTRACT_FILES, capabilityConstant, firmwareHeader } from "../lib/contract.mjs";
 import { APPS, FIRMWARE, appsWith } from "./helpers.mjs";
 
 const present = existsSync(FIRMWARE);
@@ -111,12 +112,12 @@ describe("cost model contract", { skip }, () => {
   const flowH = present ? source("FlowApp.h") : "";
   const flowCpp = present ? source("FlowApp.cpp") : "";
 
-  test("the cost constants match", () => {
-    assert.equal(constant(flowH, "kCellOpNsPerCell"), CELL_OP_NS_PER_CELL);
-    assert.equal(constant(flowH, "kScalarOpNs"), SCALAR_OP_NS);
-    assert.equal(constant(flowH, "kFeaturesNsPerCell"), FEATURES_NS_PER_CELL);
+  test("the firmware's AppContract.h is generated from this opset", () => {
+    // Op names, input counts, costs, kinds, capability bits, field names and
+    // the palette all live there; this one comparison replaces a test per table.
+    assert.equal(source(CONTRACT_FILES.firmware.replace("firmware/newhorizons_os/", "")), firmwareHeader(),
+      "run `node sdk/bin/nhos.mjs gen-contract`");
   });
-
   test("the hard limits match", () => {
     assert.equal(constant(flowH, "kMaxNodes"), MAX_NODES);
     assert.equal(constant(flowH, "kMaxPackageBytes"), MAX_PACKAGE_BYTES);
@@ -145,96 +146,50 @@ describe("cost model contract", { skip }, () => {
     assert.equal(constant(source("AppPackage.h"), "kIdLen") - 1, MAX_APP_ID);
   });
 
-  test("the op sets agree in both directions", () => {
-    // Scoped to opFromName: featureFieldFromName uses the same shape.
-    const table = body(flowCpp, "FlowOp FlowApp::opFromName");
-    const firmwareOps = new Set([...table.matchAll(/name == "([a-z_0-9]+)"/g)].map((m) => m[1]));
-    const libraryOps = new Set(Object.keys(OPS));
-    assert.deepEqual([...libraryOps].filter((op) => !firmwareOps.has(op)), [], "the firmware has no case for these");
-    assert.deepEqual([...firmwareOps].filter((op) => !libraryOps.has(op)), [], "the library cannot emit these");
+  test("the firmware looks every name up in the generated tables", () => {
+    // Generating the tables is only half of it: a parser that kept its own
+    // if-chain would still drift. Each lookup has to go through them.
+    assert.match(body(flowCpp, "FlowOp FlowApp::opFromName"), /kFlowOps\[i\]\.name/);
+    assert.match(body(flowCpp, "bool FlowApp::isSweepOp"), /opInfo\(op\)\.sweep/);
+    assert.match(flowCpp, /bool isRegionOp\(FlowOp op\) \{ return opInfo\(op\)\.region; \}/);
+    assert.match(flowCpp, /indexOfName\(kFeatureFieldNames, fieldName\)/);
+    assert.match(flowCpp, /indexOfName\(kImuFieldNames, fieldName\)/);
+    assert.match(flowCpp, /indexOfName\(kMagFieldNames, fieldName\)/);
+    assert.match(flowCpp, /for \(const FlowColour& candidate : kFlowColours\)/);
+    assert.match(flowCpp, /const uint8_t needed = opInfo\(node\.op\)\.inputs;/);
+    assert.match(flowCpp, /if \(opInfo\(node\.op\)\.windowed\)/);
+    assert.match(body(source("AppPackage.cpp"), "uint16_t AppPackage::capabilityFromName"), /kAppCapabilityNames/);
   });
 
-  test("the feature fields agree, in order", () => {
-    const fields = [...flowCpp.matchAll(/name == "([a-z_0-9]+)"\) return static_cast<uint8_t>\(FeatureField::(\w+)\)/g)].map((m) => m[1]);
-    assert.deepEqual(new Set(fields), new Set(FEATURE_FIELDS));
-    // FeatureField's enum order is the wire order the library documents.
-    const enumBody = /enum class FeatureField : uint8_t \{([^}]*)\}/.exec(flowH);
-    assert.ok(enumBody);
-    const members = enumBody[1].split(",").map((m) => m.trim().split(/\s|=/)[0]).filter((m) => m && m !== "Count");
-    const camel = FEATURE_FIELDS.map((f) => f.replace(/(^|_)([a-z0-9])/g, (_, __, c) => c.toUpperCase()));
-    assert.deepEqual(members, camel);
-  });
-
-  test("the LED palette agrees", () => {
-    // An unknown colour is refused on the device only after upload.
-    const colours = [...flowCpp.matchAll(/rgb == "([a-z]+)"/g)].map((m) => m[1]);
-    assert.deepEqual(new Set(colours), new Set(Object.keys(LED_COLOURS)));
-  });
-
-  test("the capability names agree", () => {
-    const block = body(source("AppPackage.cpp"), "uint16_t AppPackage::capabilityFromName");
-    const firmwareCaps = new Set([...block.matchAll(/name == "([a-z_]+)"/g)].map((m) => m[1]));
-    // The library only lets an author declare the data capabilities; the
-    // event-source bits are set by the device, not by a package.
-    assert.deepEqual(Object.keys(CAPABILITIES).filter((cap) => !firmwareCaps.has(cap)), []);
+  test("the cost estimate uses each op's own cost", () => {
+    const estimate = body(flowCpp, "uint32_t FlowApp::estimateNodesUs");
+    assert.match(estimate, /info\.sweep \? static_cast<uint64_t>\(cellCount\) \* info\.nsPerCell : info\.nsFlat/);
   });
 });
 
-describe("per-op contract", { skip }, () => {
-  const flowCpp = present ? source("FlowApp.cpp") : "";
+describe("per-op contract", () => {
+  // The device persists op numbers beside counter values, so FlowOp -- which
+  // is generated in OPS order -- may only ever grow at the end.
+  const SHIPPED = [
+    "total", "peak", "region_sum", "active_cells", "threshold", "debounce", "emit",
+    "const", "add", "sub", "mul", "div", "min", "max", "abs", "clamp",
+    "mean", "max_hold", "delta", "integrate", "counter",
+    "features", "feature_get", "arg_max", "row_centroid", "col_centroid",
+    "led", "emit_value", "select", "gate", "budget_load", "grace_left",
+    "mod", "button", "oled_text", "oled_bar", "ext_pixel", "ext_meter",
+    "not", "duration", "interval", "peak_since", "counter_reset", "sqrt", "atan2",
+    "region_peak", "region_active", "region_row_centroid", "region_col_centroid",
+    "imu", "mag", "battery", "linked", "uptime",
+  ];
 
-  // name -> FlowOp enum member, from the firmware's own parser.
-  const enumOf = present
-    ? new Map(
-        [...body(flowCpp, "FlowOp FlowApp::opFromName").matchAll(/name == "([a-z_0-9]+)"\) return FlowOp::(\w+);/g)].map(
-          (m) => [m[1], m[2]],
-        ),
-      )
-    : new Map();
-
-  test("every op maps to a firmware enum member", () => {
-    assert.deepEqual(Object.keys(OPS).filter((name) => !enumOf.has(name)), []);
+  test("ops are only ever appended", () => {
+    assert.deepEqual(Object.keys(OPS).slice(0, SHIPPED.length), SHIPPED);
   });
 
-  test("sweep ops agree with FlowApp::isSweepOp", () => {
-    // A sweep is costed per cell; a mismatch makes the library's estimate and
-    // the device's disagree by a factor of the cell count.
-    const sweeps = new Set([...body(flowCpp, "bool FlowApp::isSweepOp").matchAll(/FlowOp::(\w+)/g)].map((m) => m[1]));
-    for (const [name, spec] of Object.entries(OPS)) {
-      assert.equal(sweeps.has(enumOf.get(name)), spec.sweep, `${name}: sweep`);
-    }
-  });
-
-  test("operand counts agree with the firmware's missing_input check", () => {
-    // An op the library lets through with too few inputs is refused on the
-    // device with missing_input, after upload.
-    const start = flowCpp.indexOf("uint8_t needed = 0;");
-    assert.ok(start >= 0, "operand-count switch not found");
-    const sw = flowCpp.slice(start, flowCpp.indexOf("default:", start));
-    const needed = new Map();
-    for (const group of sw.matchAll(/((?:case FlowOp::\w+:\s*)+)needed = (\d);/g)) {
-      for (const m of group[1].matchAll(/FlowOp::(\w+)/g)) needed.set(m[1], Number(group[2]));
-    }
-    for (const [name, spec] of Object.entries(OPS)) {
-      assert.equal(needed.get(enumOf.get(name)) ?? 0, spec.inputs, `${name}: inputs`);
-    }
-  });
-
-  test("capability bit values agree", () => {
-    // The names were already checked; this is the numbers a package's
-    // capability mask is compared against.
-    const app = source("App.h");
-    const bits = new Map(
-      [...app.matchAll(/(kAppCap\w+) = 1 << (\d+),/g)].map((m) => [m[1], 1 << Number(m[2])]),
-    );
-    const named = new Map(
-      [...body(source("AppPackage.cpp"), "uint16_t AppPackage::capabilityFromName").matchAll(/name == "([a-z_]+)"\) return (kAppCap\w+);/g)].map(
-        (m) => [m[1], m[2]],
-      ),
-    );
-    for (const [name, bit] of Object.entries(CAPABILITIES)) {
-      assert.ok(named.has(name), `${name}: no firmware capability`);
-      assert.equal(bits.get(named.get(name)), bit, `${name}: bit value`);
+  test("every capability an op needs is one a package may declare", () => {
+    for (const spec of Object.values(OPS)) {
+      if (spec.capability) assert.ok(Object.hasOwn(CAPABILITIES, spec.capability), `${spec.name}: ${spec.capability}`);
+      if (spec.sweep) assert.equal(spec.capability, "read_matrix", spec.name);
     }
   });
 });
@@ -438,20 +393,6 @@ describe("v1.6.0 contract", { skip }, () => {
   const flowCpp = present ? source("FlowApp.cpp") : "";
   const mathH = present ? source("FlowMath.h") : "";
 
-  test("the imu and mag fields agree, in order", () => {
-    for (const [fn, fields, enumName] of /** @type {const} */ ([
-      ["uint8_t imuFieldFromName", IMU_FIELDS, "ImuField"],
-      ["uint8_t magFieldFromName", MAG_FIELDS, "MagField"],
-    ])) {
-      const names = [...body(flowCpp, fn).matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
-      assert.deepEqual(names, [...fields], fn);
-      const enumBody = new RegExp(`enum class ${enumName} : uint8_t \\{([^}]*)\\}`).exec(mathH);
-      assert.ok(enumBody, enumName);
-      const members = enumBody[1].split(",").map((m) => m.trim().split(/\s|=/)[0]).filter((m) => m && m !== "Count");
-      assert.equal(members.length, fields.length, enumName);
-    }
-  });
-
   test("the region, tick and persist constants match", () => {
     assert.equal(constant(mathH, "kRegionRelRows"), REL_ROWS);
     assert.equal(constant(mathH, "kRegionRelCols"), REL_COLS);
@@ -460,22 +401,15 @@ describe("v1.6.0 contract", { skip }, () => {
     assert.equal(constant(flowH, "kPersistIntervalMs"), PERSIST_INTERVAL_MS);
   });
 
-  test("every capability has the firmware's bit, and a flow slot may hold it", () => {
-    const appH = source("App.h");
-    const bits = Object.fromEntries([...appH.matchAll(/(kAppCap\w+) = 1 << (\d+)/g)].map((m) => [m[1], 1 << Number(m[2])]));
-    const packageCpp = body(source("AppPackage.cpp"), "uint16_t AppPackage::capabilityFromName");
+  test("a flow slot may hold every capability a package declares", () => {
+    // A capability the slot's mask drops is granted by the library and
+    // silently withheld by the device.
     const allowed = body(flowCpp, "void FlowApp::applyPackageManifest");
-    for (const [name, bit] of Object.entries(CAPABILITIES)) {
-      const constantName = new RegExp(`name == "${name}"\\) return (kAppCap\\w+)`).exec(packageCpp)?.[1];
-      assert.ok(constantName, name);
-      assert.equal(bits[constantName], bit, name);
-      // A capability the slot's mask drops is granted by the library and
-      // silently withheld by the device.
-      if (name !== "write_file") assert.ok(allowed.includes(constantName), `${name} is masked off in a flow slot`);
+    for (const name of Object.keys(CAPABILITIES)) {
+      if (name !== "write_file") assert.ok(allowed.includes(capabilityConstant(name)), `${name} is masked off in a flow slot`);
     }
     for (const name of Object.keys(CAPABILITY_SINCE)) assert.ok(Object.hasOwn(CAPABILITIES, name), name);
   });
-
   test("the device strips every sample an app did not declare", () => {
     const dispatch = body(source("AppManager.cpp"), "void AppManager::dispatch");
     for (const [cap, field] of [["kAppCapReadImu", "imuSample"], ["kAppCapReadMag", "magSample"],

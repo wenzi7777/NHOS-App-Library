@@ -10,6 +10,7 @@
  *                                  [--press ms,ms,...]
  *   node sdk/bin/nhos.mjs build-index [--check]
  *   node sdk/bin/nhos.mjs check-versions [--base origin/main]
+ *   node sdk/bin/nhos.mjs gen-contract [--firmware DIR] [--backend DIR] [--check]
  *
  * With no paths, compile and validate cover every app under apps/.
  * Everything here is file handling; the logic is in ../lib and is the same
@@ -40,6 +41,7 @@ import {
   parseSamplesCsv,
   validatePackage,
 } from "../lib/index.mjs";
+import { CONTRACT_FILES, backendModule, firmwareHeader } from "../lib/contract.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const APPS = join(ROOT, "apps");
@@ -451,6 +453,46 @@ function cmdCheckVersions(argv) {
   return 0;
 }
 
+/**
+ * Writes (or with --check, compares) the firmware's AppContract.h and the
+ * Desktop's app_contract.py, generated from opset.mjs. The repositories
+ * default to the sibling checkouts beside this one; one that is missing is
+ * skipped with a note, unless it was named explicitly.
+ * @param {string[]} argv
+ */
+function cmdGenContract(argv) {
+  const { options } = parseArgs(argv, { firmware: "value", backend: "value", check: "flag" });
+  const targets = [
+    { label: "firmware", dir: options.firmware, fallback: "NewHorizonsOS-OTA", file: CONTRACT_FILES.firmware, text: firmwareHeader() },
+    { label: "backend", dir: options.backend, fallback: "New-Horizons-Desktop", file: CONTRACT_FILES.backend, text: backendModule() },
+  ];
+  let failures = 0;
+  for (const target of targets) {
+    const explicit = typeof target.dir === "string";
+    const repo = explicit ? resolve(String(target.dir)) : join(ROOT, "..", target.fallback);
+    if (!existsSync(repo)) {
+      if (explicit) throw new UsageError(`${target.label}: no such directory ${repo}`);
+      console.log(`  skip ${target.label}: ${repo} is not checked out`);
+      continue;
+    }
+    const path = join(repo, target.file);
+    const current = existsSync(path) ? readFileSync(path, "utf8") : null;
+    if (options.check) {
+      if (current === target.text) console.log(`  ok ${target.label}: ${target.file}`);
+      else {
+        console.error(`  DRIFT ${target.label}: ${target.file} differs from opset.mjs; run gen-contract`);
+        failures += 1;
+      }
+    } else if (current !== target.text) {
+      writeFileSync(path, target.text);
+      console.log(`  wrote ${path}`);
+    } else {
+      console.log(`  unchanged ${path}`);
+    }
+  }
+  return failures ? 1 : 0;
+}
+
 // --- main -------------------------------------------------------------------
 
 const COMMANDS = {
@@ -459,6 +501,7 @@ const COMMANDS = {
   simulate: cmdSimulate,
   "build-index": cmdBuildIndex,
   "check-versions": cmdCheckVersions,
+  "gen-contract": cmdGenContract,
 };
 
 const USAGE = `  node sdk/bin/nhos.mjs compile  [app.nhs ...] [--write] [--cells N]
@@ -467,7 +510,8 @@ const USAGE = `  node sdk/bin/nhos.mjs compile  [app.nhs ...] [--write] [--cells
                                  [--events out.events.csv] [--compare recorded.events.csv] [--budget]
                                  [--press ms,ms,...]
   node sdk/bin/nhos.mjs build-index [--check]
-  node sdk/bin/nhos.mjs check-versions [--base origin/main]`;
+  node sdk/bin/nhos.mjs check-versions [--base origin/main]
+  node sdk/bin/nhos.mjs gen-contract [--firmware DIR] [--backend DIR] [--check]`;
 
 function main() {
   const [command, ...rest] = process.argv.slice(2);

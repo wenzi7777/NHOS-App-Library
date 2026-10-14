@@ -53,6 +53,7 @@ import {
   graphCostUs,
   graphMemoryBytes,
   minOsFor,
+  opSpec,
   windowFloats,
 } from "./opset.mjs";
 
@@ -617,7 +618,6 @@ class Parser {
     const condition = this.parseCondition();
     this.events.set(name, condition);
     this.builder.emit("emit", [condition], { event: name });
-    this.capabilities.add("emit_event");
   }
 
   parseEmit() {
@@ -642,7 +642,6 @@ class Parser {
     const params = { event: name };
     if (edge.text === "fall") params.fall = 1;
     this.builder.emit("emit_value", [trigger, value], params);
-    this.capabilities.add("emit_event");
   }
 
   parseLed() {
@@ -655,7 +654,6 @@ class Parser {
     this.expect("when");
     const trigger = this.trigger(this.expectKind("name"));
     this.builder.emit("led", [trigger], { rgb: colour });
-    this.capabilities.add("drive_led");
   }
 
   /** `<row> "<label>"`, the part `show` and `bar` share. */
@@ -685,7 +683,6 @@ class Parser {
         col: keyword.col,
       });
     }
-    this.capabilities.add("display");
     return { row, label };
   }
 
@@ -725,7 +722,6 @@ class Parser {
         col: keyword.col,
       });
     }
-    this.capabilities.add("drive_ext_led");
   }
 
   parsePixel() {
@@ -871,25 +867,21 @@ class Parser {
 
     if (name === "sum") {
       arity(1);
-      this.capabilities.add("read_matrix");
       return this.builder.emit("region_sum", [], this.regionParams(args[0], nameToken, "sum() takes a region name"));
     }
 
     // peak(heel), row_centroid(heel), col_centroid(heel): the whole-matrix
     // sweep, over one region.
     if (Object.hasOwn(REGION_FUNCS, name) && args.length === 1) {
-      this.capabilities.add("read_matrix");
       return this.builder.emit(REGION_FUNCS[name], [], this.regionParams(args[0], nameToken, `${name}() takes a region name, or nothing for the whole matrix`));
     }
 
     if (Object.hasOwn(SWEEP_FUNCS, name)) {
       arity(0);
-      this.capabilities.add("read_matrix");
       return this.builder.emit(SWEEP_FUNCS[name]);
     }
 
     if (name === "active") {
-      this.capabilities.add("read_matrix");
       if (args.length === 2) {
         const params = this.regionParams(args[0], nameToken, "active() takes a region and a level, or just a level");
         return this.builder.emit("region_active", [], { value: this.literal(args[1], nameToken), ...params });
@@ -905,14 +897,12 @@ class Parser {
       if (typeof token === "number" || !fields.includes(token.text)) {
         throw fail(`${name}() takes one of ${fields.join(", ")}`);
       }
-      this.capabilities.add(name === "imu" ? "read_imu" : "read_mag");
       return this.builder.emit(name, [], { field: token.text });
     }
 
     if (Object.hasOwn(SENSOR_FUNCS, name)) {
       arity(0);
-      const [op, capability] = SENSOR_FUNCS[name];
-      this.capabilities.add(capability);
+      const [op] = SENSOR_FUNCS[name];
       return this.builder.emit(op);
     }
 
@@ -952,7 +942,6 @@ class Parser {
       if (typeof token === "number" || !FEATURE_FIELDS.includes(token.text)) {
         throw fail(`feature() takes one of ${FEATURE_FIELDS.join(", ")}`);
       }
-      this.capabilities.add("read_matrix");
       const features = this.builder.emit("features");
       return this.builder.emit("feature_get", [features], { field: token.text });
     }
@@ -983,7 +972,6 @@ class Parser {
 
     if (name === "button") {
       arity(0);
-      this.capabilities.add("button");
       return this.builder.emit("button");
     }
 
@@ -1041,6 +1029,11 @@ class Parser {
     // A graph without it is never woken, so one that only pages a counter
     // with the button would silently never run.
     this.capabilities.add("read_matrix");
+    // Everything else an op reads or drives follows from the graph itself.
+    for (const node of this.builder.nodes) {
+      const capability = opSpec(node.op).capability;
+      if (capability) this.capabilities.add(capability);
+    }
 
     /** @type {Record<string, unknown>} */
     const manifest = { ...this.manifest };

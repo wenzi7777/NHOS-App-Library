@@ -176,19 +176,18 @@ export function validateGraph(nodes, manifest, options = {}) {
     }
 
     for (const key of op.required) require(key in node, `missing_field:${name}.${key}`, index);
+    // What the op reads or drives (opset.mjs), declared or refused.
+    if (op.capability) require(caps.has(op.capability), `capability_not_declared:${op.capability}`, index);
 
     if (name === "emit" || name === "emit_value") {
       const event = text(node.event);
       require(event, "missing_event_name", index);
       require(event.length <= MAX_EVENT_NAME, `event_name_too_long:${event}`, index);
-      require(caps.has("emit_event"), "capability_not_declared:emit_event", index);
     }
     if (name === "led") {
-      require(caps.has("drive_led"), "capability_not_declared:drive_led", index);
       require(Object.hasOwn(LED_COLOURS, text(node.rgb)), `unknown_colour:${text(node.rgb)}`, index);
     }
     if (name === "oled_text" || name === "oled_bar") {
-      require(caps.has("display"), "capability_not_declared:display", index);
       require(isInt(node.row) && /** @type {number} */ (node.row) >= 0 && /** @type {number} */ (node.row) < OLED_ROWS,
         `invalid_oled_row:${text(node.row)}`, index);
       const label = node.label;
@@ -203,9 +202,6 @@ export function validateGraph(nodes, manifest, options = {}) {
       require(typeof node.lo === "number" && typeof node.hi === "number" && node.hi > node.lo,
         `invalid_bar_range:${text(node.lo)}..${text(node.hi)}`, index);
     }
-    if (name === "ext_pixel" || name === "ext_meter") {
-      require(caps.has("drive_ext_led"), "capability_not_declared:drive_ext_led", index);
-    }
     if (name === "ext_pixel") {
       require(isInt(node.index) && /** @type {number} */ (node.index) >= 0 && /** @type {number} */ (node.index) < MAX_EXT_LEDS,
         `invalid_ext_led_index:${text(node.index)}`, index);
@@ -215,7 +211,6 @@ export function validateGraph(nodes, manifest, options = {}) {
       require(typeof node.lo === "number" && typeof node.hi === "number" && node.hi > node.lo,
         `invalid_meter_range:${text(node.lo)}..${text(node.hi)}`, index);
     }
-    if (name === "button") require(caps.has("button"), "capability_not_declared:button", index);
     if (name === "feature_get") {
       const field = text(node.field);
       require(FEATURE_FIELDS.includes(field), `unknown_feature_field:${field}`, index);
@@ -251,11 +246,7 @@ export function validateGraph(nodes, manifest, options = {}) {
     if (name === "imu" || name === "mag") {
       const fields = name === "imu" ? IMU_FIELDS : MAG_FIELDS;
       require(fields.includes(text(node.field)), `unknown_${name}_field:${text(node.field)}`, index);
-      const cap = name === "imu" ? "read_imu" : "read_mag";
-      require(caps.has(cap), `capability_not_declared:${cap}`, index);
     }
-    if (name === "battery") require(caps.has("power"), "capability_not_declared:power", index);
-    if (name === "linked") require(caps.has("link"), "capability_not_declared:link", index);
     if ("persist" in node) {
       require(name === "counter" || name === "counter_reset", `unexpected_field:${name}.persist`, index);
       require(node.persist === 1, `invalid_persist:${text(node.persist)}`, index);
@@ -268,7 +259,6 @@ export function validateGraph(nodes, manifest, options = {}) {
     for (const key of ["value", "hysteresis", "lo", "hi"]) {
       if (key in node) require(typeof node[key] === "number" && Number.isFinite(node[key]), `invalid_number:${name}.${key}`, index);
     }
-    if (op.sweep) require(caps.has("read_matrix"), "capability_not_declared:read_matrix", index);
     if (op.windowKey) {
       const window = node[op.windowKey];
       require(isInt(window) && /** @type {number} */ (window) >= 1 && /** @type {number} */ (window) <= MAX_WINDOW,

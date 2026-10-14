@@ -94,6 +94,17 @@ export const CAPABILITIES = Object.freeze({
 });
 
 /**
+ * Capabilities the device knows but a package may not declare: the firmware
+ * sets them itself. Listed so the generated firmware table (gen-contract) is
+ * complete; validate() never accepts them.
+ * @type {Readonly<Record<string, number>>}
+ */
+export const DEVICE_CAPABILITIES = Object.freeze({
+  // Budget-pressure events, delivered to every app.
+  budget: 1 << 9,
+});
+
+/**
  * Capabilities an older firmware would accept and then silently ignore, which
  * is worse than refusing: an app that never runs on ticks, or never keeps its
  * count, looks broken rather than unsupported. min_os says so instead.
@@ -196,6 +207,7 @@ export const FLOAT_FIELDS = Object.freeze(["value", "hysteresis", "lo", "hi"]);
  * @property {string|null} windowKey the key naming this op's ring-buffer length
  * @property {string} since introduced in this OS version
  * @property {boolean} boolean produces a boolean (may feed threshold/debounce/emit/gate)
+ * @property {string|null} capability the capability a graph using it must declare
  * @property {string} summary one line for the reference
  */
 
@@ -218,6 +230,8 @@ function op(name, spec = {}) {
     boolean: false,
     summary: "",
     ...spec,
+    // Every sweep reads the matrix; the other ops say what they need.
+    capability: spec.capability ?? (spec.sweep ? "read_matrix" : null),
   });
 }
 
@@ -227,7 +241,12 @@ const V15 = "v1.5.0";
 const V16 = "v1.6.0";
 const REGION = ["r0", "c0", "r1", "c1"];
 
-/** @type {Readonly<Record<string, OpSpec>>} */
+/**
+ * The order below is the firmware's FlowOp enum (generated from it, see
+ * contract.mjs), and the device persists op numbers with counter values:
+ * APPEND new ops, never insert or reorder.
+ * @type {Readonly<Record<string, OpSpec>>}
+ */
 export const OPS = Object.freeze(Object.fromEntries([
   // --- v1.0.0: shipped, do not change semantics -----------------------------
   op("total", { sweep: true, summary: "Sum of every cell." }),
@@ -236,7 +255,7 @@ export const OPS = Object.freeze(Object.fromEntries([
   op("active_cells", { sweep: true, required: ["value"], summary: "Count of cells at or above `value`." }),
   op("threshold", { inputs: 1, required: ["value"], optional: ["hysteresis"], boolean: true, summary: "True while input >= value; once latched, holds until input <= value - hysteresis." }),
   op("debounce", { inputs: 1, required: ["ms"], boolean: true, summary: "Passes a boolean only after it has held steady for `ms`." }),
-  op("emit", { inputs: 1, required: ["event"], summary: "Records `event` with detail rise/fall on each edge." }),
+  op("emit", { capability: "emit_event", inputs: 1, required: ["event"], summary: "Records `event` with detail rise/fall on each edge." }),
 
   // --- v1.1.0: arithmetic ---------------------------------------------------
   op("const", { required: ["value"], since: V11, summary: "A constant." }),
@@ -266,8 +285,8 @@ export const OPS = Object.freeze(Object.fromEntries([
   op("col_centroid", { sweep: true, since: V11, summary: "Force-weighted column of cells at or above the contact threshold." }),
 
   // --- v1.1.0: output -------------------------------------------------------
-  op("led", { inputs: 1, required: ["rgb"], since: V11, summary: "Sets the LED to `rgb` while a boolean is true, off when it falls." }),
-  op("emit_value", { inputs: 2, required: ["event"], optional: ["fall"], since: V11, summary: "Records `event` carrying b's value on each rise of a (each fall, with `fall`)." }),
+  op("led", { capability: "drive_led", inputs: 1, required: ["rgb"], since: V11, summary: "Sets the LED to `rgb` while a boolean is true, off when it falls." }),
+  op("emit_value", { capability: "emit_event", inputs: 2, required: ["event"], optional: ["fall"], since: V11, summary: "Records `event` carrying b's value on each rise of a (each fall, with `fall`)." }),
 
   // --- v1.1.0: conditionals for self-degradation ----------------------------
   // Branches keep execution bounded (worst case = every node runs); only
@@ -281,15 +300,15 @@ export const OPS = Object.freeze(Object.fromEntries([
   // All scalar: an OLED node only records what to show. The panel is redrawn
   // at the OLED's own update_hz, outside every app's budget.
   op("mod", { inputs: 2, since: V14, summary: "a mod b (C fmodf: the sign of a), or 0 when b is 0." }),
-  op("button", { boolean: true, since: V14, summary: "True for one frame per short press of the action button, false for at least one frame between presses." }),
-  op("oled_text", { inputs: 1, required: ["row", "label"], optional: ["digits"], since: V14, summary: "Shows `label` and the input's value on OLED row `row`." }),
-  op("oled_bar", { inputs: 1, required: ["row", "label", "lo", "hi"], since: V14, summary: "Shows `label` and the input as a bar over [lo, hi] on OLED row `row`." }),
+  op("button", { capability: "button", boolean: true, since: V14, summary: "True for one frame per short press of the action button, false for at least one frame between presses." }),
+  op("oled_text", { capability: "display", inputs: 1, required: ["row", "label"], optional: ["digits"], since: V14, summary: "Shows `label` and the input's value on OLED row `row`." }),
+  op("oled_bar", { capability: "display", inputs: 1, required: ["row", "label", "lo", "hi"], since: V14, summary: "Shows `label` and the input as a bar over [lo, hi] on OLED row `row`." }),
 
   // --- v1.5.0: the external LED strip ---------------------------------------
   // Scalar, like the OLED ops: they record what to show, and the strip is
   // drawn by the LED service outside every app's budget.
-  op("ext_pixel", { inputs: 1, required: ["index", "rgb"], since: V15, summary: "Lights external pixel `index` in `rgb` on frames a boolean is true." }),
-  op("ext_meter", { inputs: 1, required: ["lo", "hi"], since: V15, summary: "Shows the input as a meter along the external strip over [lo, hi], green to red." }),
+  op("ext_pixel", { capability: "drive_ext_led", inputs: 1, required: ["index", "rgb"], since: V15, summary: "Lights external pixel `index` in `rgb` on frames a boolean is true." }),
+  op("ext_meter", { capability: "drive_ext_led", inputs: 1, required: ["lo", "hi"], since: V15, summary: "Shows the input as a meter along the external strip over [lo, hi], green to red." }),
 
   // --- v1.6.0: time, logic and counting --------------------------------------
   // None of these takes a window, so they cost nothing from the pool and are
@@ -311,10 +330,10 @@ export const OPS = Object.freeze(Object.fromEntries([
   // --- v1.6.0: the other sensors ---------------------------------------------
   // Each reads the sample delivered with the frame (or tick) and holds its last
   // value when there is none, so a board without the sensor reads 0.
-  op("imu", { required: ["field"], since: V16, summary: "One IMU field: ax/ay/az and acc_mag in g, gx/gy/gz and gyro_mag in deg/s, pitch/roll in degrees." }),
-  op("mag", { required: ["field"], since: V16, summary: "One magnetometer field: mx/my/mz and strength in microtesla, heading in degrees 0-360." }),
-  op("battery", { since: V16, summary: "Battery charge in percent, or -1 when the board has no gauge reading." }),
-  op("linked", { boolean: true, since: V16, summary: "True while the device has a Gateway or Hub to stream to." }),
+  op("imu", { capability: "read_imu", required: ["field"], since: V16, summary: "One IMU field: ax/ay/az and acc_mag in g, gx/gy/gz and gyro_mag in deg/s, pitch/roll in degrees." }),
+  op("mag", { capability: "read_mag", required: ["field"], since: V16, summary: "One magnetometer field: mx/my/mz and strength in microtesla, heading in degrees 0-360." }),
+  op("battery", { capability: "power", since: V16, summary: "Battery charge in percent, or -1 when the board has no gauge reading." }),
+  op("linked", { capability: "link", boolean: true, since: V16, summary: "True while the device has a Gateway or Hub to stream to." }),
   op("uptime", { since: V16, summary: "Seconds since the device booted." }),
 ].map((spec) => [spec.name, spec])));
 
