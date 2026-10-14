@@ -485,9 +485,10 @@ describe("v1.6.0 contract", { skip }, () => {
   });
 
   test("every command a readout may poll exists on the device", () => {
-    const control = source("ControlServer.cpp");
+    // Firmware v1.15.0+: one row per command in ControlCommandTable.cpp.
+    const table = source("ControlCommandTable.cpp");
     for (const command of readoutset.ALLOWED_SOURCES) {
-      assert.ok(control.includes(`cmd == "${command}"`), command);
+      assert.ok(table.includes(`{"${command}", &ControlServer::`), command);
     }
   });
 
