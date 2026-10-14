@@ -180,6 +180,65 @@ describe("cost model contract", { skip }, () => {
   });
 });
 
+describe("per-op contract", { skip }, () => {
+  const flowCpp = present ? source("FlowApp.cpp") : "";
+
+  // name -> FlowOp enum member, from the firmware's own parser.
+  const enumOf = present
+    ? new Map(
+        [...body(flowCpp, "FlowOp FlowApp::opFromName").matchAll(/name == "([a-z_0-9]+)"\) return FlowOp::(\w+);/g)].map(
+          (m) => [m[1], m[2]],
+        ),
+      )
+    : new Map();
+
+  test("every op maps to a firmware enum member", () => {
+    assert.deepEqual(Object.keys(OPS).filter((name) => !enumOf.has(name)), []);
+  });
+
+  test("sweep ops agree with FlowApp::isSweepOp", () => {
+    // A sweep is costed per cell; a mismatch makes the library's estimate and
+    // the device's disagree by a factor of the cell count.
+    const sweeps = new Set([...body(flowCpp, "bool FlowApp::isSweepOp").matchAll(/FlowOp::(\w+)/g)].map((m) => m[1]));
+    for (const [name, spec] of Object.entries(OPS)) {
+      assert.equal(sweeps.has(enumOf.get(name)), spec.sweep, `${name}: sweep`);
+    }
+  });
+
+  test("operand counts agree with the firmware's missing_input check", () => {
+    // An op the library lets through with too few inputs is refused on the
+    // device with missing_input, after upload.
+    const start = flowCpp.indexOf("uint8_t needed = 0;");
+    assert.ok(start >= 0, "operand-count switch not found");
+    const sw = flowCpp.slice(start, flowCpp.indexOf("default:", start));
+    const needed = new Map();
+    for (const group of sw.matchAll(/((?:case FlowOp::\w+:\s*)+)needed = (\d);/g)) {
+      for (const m of group[1].matchAll(/FlowOp::(\w+)/g)) needed.set(m[1], Number(group[2]));
+    }
+    for (const [name, spec] of Object.entries(OPS)) {
+      assert.equal(needed.get(enumOf.get(name)) ?? 0, spec.inputs, `${name}: inputs`);
+    }
+  });
+
+  test("capability bit values agree", () => {
+    // The names were already checked; this is the numbers a package's
+    // capability mask is compared against.
+    const app = source("App.h");
+    const bits = new Map(
+      [...app.matchAll(/(kAppCap\w+) = 1 << (\d+),/g)].map((m) => [m[1], 1 << Number(m[2])]),
+    );
+    const named = new Map(
+      [...body(source("AppPackage.cpp"), "uint16_t AppPackage::capabilityFromName").matchAll(/name == "([a-z_]+)"\) return (kAppCap\w+);/g)].map(
+        (m) => [m[1], m[2]],
+      ),
+    );
+    for (const [name, bit] of Object.entries(CAPABILITIES)) {
+      assert.ok(named.has(name), `${name}: no firmware capability`);
+      assert.equal(bits.get(named.get(name)), bit, `${name}: bit value`);
+    }
+  });
+});
+
 describe("OLED contract", { skip }, () => {
   test("the panel's shape and limits match", () => {
     const display = source("AppDisplay.h");

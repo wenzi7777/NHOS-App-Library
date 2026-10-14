@@ -17,6 +17,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      # sdk/test/firmware-contract.test.mjs reads the device firmware from
+      # ../NewHorizonsOS-OTA and skips without it -- which would leave the
+      # one test that catches library/firmware drift never running in CI.
+      - name: Check out the device firmware beside this repo
+        run: git clone --depth 1 https://github.com/wenzi7777/New-Horizons-OS.git ../NewHorizonsOS-OTA
 
       - name: Compile sources
         run: node sdk/bin/nhos.mjs compile
