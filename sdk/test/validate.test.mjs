@@ -140,6 +140,18 @@ describe("graph rejection", () => {
     ], "capability_not_declared:emit_event", { capabilities: ["read_matrix"] });
   });
 
+  test("a node with several problems reports the same one it always did", () => {
+    // Where each op's capability is checked is part of the error contract:
+    // the event name before emit_event, the field before read_imu, the
+    // region before power.
+    const caps = { capabilities: ["read_matrix"] };
+    assertGraphRejects([
+      { op: "total" }, { op: "threshold", in: 0, value: 1 }, { op: "emit", in: 1, event: "" },
+    ], "missing_event_name", caps);
+    assertGraphRejects([{ op: "imu", field: "vibes" }], "unknown_imu_field", { ...caps, min_os: "v1.6.0" });
+    assertGraphRejects([{ op: "battery", rel: 1 }], "unexpected_field:battery.rel", { ...caps, min_os: "v1.6.0" });
+  });
+
   test("feature_get must read a features node", () => {
     assertGraphRejects([{ op: "total" }, { op: "feature_get", in: 0, field: "peak" }], "feature_get_input_must_be_features", { min_os: "v1.1.0" });
   });

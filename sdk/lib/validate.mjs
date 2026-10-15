@@ -91,6 +91,22 @@ function require(condition, code, node = null) {
 }
 
 /**
+ * Where validate() checks an op's capability. The rule itself comes from
+ * opset.mjs; the position keeps the order errors have always come in: emit
+ * ops after their event name, imu/mag after their field, battery/linked after
+ * the region checks, sweeps last before the window, the rest straight away.
+ * @param {string} name
+ * @param {{sweep: boolean}} op
+ */
+function capabilityCheckPoint(name, op) {
+  if (name === "emit" || name === "emit_value") return "after_event";
+  if (name === "imu" || name === "mag") return "after_field";
+  if (name === "battery" || name === "linked") return "after_sensors";
+  if (op.sweep) return "late";
+  return "early";
+}
+
+/**
  * @param {unknown} value
  * @returns {value is Record<string, any>}
  */
@@ -176,13 +192,21 @@ export function validateGraph(nodes, manifest, options = {}) {
     }
 
     for (const key of op.required) require(key in node, `missing_field:${name}.${key}`, index);
-    // What the op reads or drives (opset.mjs), declared or refused.
-    if (op.capability) require(caps.has(op.capability), `capability_not_declared:${op.capability}`, index);
+    // What the op reads or drives (opset.mjs), declared or refused -- checked
+    // at the point each op always had it, so a node with several problems
+    // still reports the same one first.
+    const checkCapability = (/** @type {string} */ at) => {
+      if (op.capability && capabilityCheckPoint(name, op) === at) {
+        require(caps.has(op.capability), `capability_not_declared:${op.capability}`, index);
+      }
+    };
+    checkCapability("early");
 
     if (name === "emit" || name === "emit_value") {
       const event = text(node.event);
       require(event, "missing_event_name", index);
       require(event.length <= MAX_EVENT_NAME, `event_name_too_long:${event}`, index);
+      checkCapability("after_event");
     }
     if (name === "led") {
       require(Object.hasOwn(LED_COLOURS, text(node.rgb)), `unknown_colour:${text(node.rgb)}`, index);
@@ -246,7 +270,9 @@ export function validateGraph(nodes, manifest, options = {}) {
     if (name === "imu" || name === "mag") {
       const fields = name === "imu" ? IMU_FIELDS : MAG_FIELDS;
       require(fields.includes(text(node.field)), `unknown_${name}_field:${text(node.field)}`, index);
+      checkCapability("after_field");
     }
+    checkCapability("after_sensors");
     if ("persist" in node) {
       require(name === "counter" || name === "counter_reset", `unexpected_field:${name}.persist`, index);
       require(node.persist === 1, `invalid_persist:${text(node.persist)}`, index);
@@ -259,6 +285,7 @@ export function validateGraph(nodes, manifest, options = {}) {
     for (const key of ["value", "hysteresis", "lo", "hi"]) {
       if (key in node) require(typeof node[key] === "number" && Number.isFinite(node[key]), `invalid_number:${name}.${key}`, index);
     }
+    checkCapability("late");
     if (op.windowKey) {
       const window = node[op.windowKey];
       require(isInt(window) && /** @type {number} */ (window) >= 1 && /** @type {number} */ (window) <= MAX_WINDOW,
