@@ -2,11 +2,15 @@
 /**
  * The Desktop's recording formats.
  *
- * A recording is `<HHMMSS>.csv` with `timestamp_ms, P1..Pn, ..., frame_seq`,
- * and the app events the device reported while it ran sit beside it in
- * `<HHMMSS>.events.csv` with `seq, frame_seq, timestamp_ms, app, event, edge,
- * value`. A simulated run is written in that same sidecar shape, so a
- * simulation and the real thing can be compared row by row on frame_seq.
+ * A recording is `<HHMMSS>.csv` (UTC time of day) with `timestamp_ms, P1..Pn,
+ * ..., frame_seq, time_ref`, and the app events the device reported while it
+ * ran sit beside it in `<HHMMSS>.events.csv` with `seq, frame_seq,
+ * timestamp_ms, app, event, edge, value` (Desktop v0.25.1+ appends `uptime_ms,
+ * time_ref`). Both timestamp_ms are Unix epoch milliseconds, and an event's is
+ * its frame's sample time, so the two files share one time base; before
+ * v0.25.1 the sidecar's was the device's time since boot (now uptime_ms).
+ * A simulated run is written in the sidecar shape too, so a simulation and the
+ * real thing can be compared row by row on frame_seq.
  *
  * The matrix shape is NOT stored in a recording -- it comes from the board
  * profile -- so a caller that knows it should pass rows/cols. Without them a
