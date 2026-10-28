@@ -9,5 +9,6 @@
     "ja": "各歩の立脚時間とストライド時間。",
     "zh-CN": "每一步的支撑时间与步幅时间。"
   },
-  "license": "MPL-2.0"
+  "license": "MPL-2.0",
+  "listed": false
 }

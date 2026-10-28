@@ -136,6 +136,6 @@ describe("catalog", () => {
     const index = JSON.parse(readFileSync(join(ROOT, "index.json"), "utf8"));
     const kinds = Object.fromEntries(index.apps.map((/** @type {{id: string, kind: string}} */ e) => [e.id, e.kind]));
     assert.equal(kinds.sysmon, "readout");
-    assert.equal(kinds.heel_strike, "flow");
+    assert.equal(kinds.taps, "flow");
   });
 });

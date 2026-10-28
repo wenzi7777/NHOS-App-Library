@@ -9,5 +9,6 @@
     "ja": "総荷重を LED メーターで表示し、接触と過負荷を示します。",
     "zh-CN": "以 LED 灯条显示总载荷，并提示接触与过载。"
   },
-  "license": "MPL-2.0"
+  "license": "MPL-2.0",
+  "listed": false
 }

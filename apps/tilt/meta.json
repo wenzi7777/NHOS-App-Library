@@ -9,5 +9,6 @@
     "ja": "IMU のピッチ・ロールを表示し、傾きが続くと警告。",
     "zh-CN": "显示 IMU 俯仰与横滚角，持续倾斜时发出警报。"
   },
-  "license": "MPL-2.0"
+  "license": "MPL-2.0",
+  "listed": false
 }

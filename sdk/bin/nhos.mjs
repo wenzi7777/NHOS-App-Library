@@ -350,6 +350,18 @@ function buildEntry(appDir) {
   return entry;
 }
 
+/**
+ * An app whose meta.json says `"listed": false` stays in the repo (its source,
+ * package and dist files are kept, and tests may still use it) but is left
+ * out of the catalog, so the Desktop's store does not offer it.
+ * @param {string} appDir
+ */
+function isListed(appDir) {
+  const metaPath = join(appDir, "meta.json");
+  if (!existsSync(metaPath)) return true;
+  return JSON.parse(readFileSync(metaPath, "utf8")).listed !== false;
+}
+
 /** @param {string[]} argv */
 function cmdBuildIndex(argv) {
   const { options } = parseArgs(argv, { check: "flag" });
@@ -357,6 +369,7 @@ function cmdBuildIndex(argv) {
     .filter((entry) => entry.isDirectory())
     .map((entry) => join(APPS, entry.name))
     .filter((dir) => existsSync(join(dir, "app.nhs")) || existsSync(join(dir, "readout.json")))
+    .filter(isListed)
     .sort();
   const entries = appDirs.map(buildEntry);
   const ids = entries.map((entry) => String(entry.id));

@@ -8,6 +8,7 @@
     "name": {"type": ["string", "object"]},
     "summary": {"type": ["string", "object"]},
     "license": {"type": "string"},
+    "listed": {"type": "boolean", "description": "false keeps the app in the repo but out of index.json (and so out of the Desktop's store). Default true."},
     "homepage": {"type": "string"},
     "screenshots": {"type": "array", "items": {"type": "string"}}
   }
